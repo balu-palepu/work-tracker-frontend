@@ -27,11 +27,24 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+    const url = error.config?.url || '';
+
+    //Do NOT redirect for auth endpoints
+    const isAuthRoute =
+      url.includes('/auth/login') ||
+      url.includes('/auth/register');
+
+    if (status === 401 && !isAuthRoute) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+
+      //soft navigation, no hard reload
+      if (window.location.pathname !== '/login') {
+        window.location.assign('/login');
+      }
     }
+
     return Promise.reject(error);
   }
 );
