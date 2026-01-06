@@ -45,6 +45,9 @@ const Navbar = () => {
               >
                 Today
               </Link>
+              <Link to="/projects" className={getLinkClasses('/projects')}>
+  Projects
+</Link>
               <Link
                 to="/history"
                 className={getLinkClasses('/history')}
@@ -57,6 +60,7 @@ const Navbar = () => {
               >
                 Statistics
               </Link>
+            
             </div>
           </div>
 

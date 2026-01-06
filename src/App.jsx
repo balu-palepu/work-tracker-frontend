@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import History from './pages/History';
 import Statistics from './pages/Statistics';
 import Profile from './pages/Profile';
+import Projects from './pages/Projects';
 
 function App() {
   return (
@@ -80,6 +81,18 @@ function App() {
                 </PrivateRoute>
               }
             />
+
+<Route
+  path="/projects"
+  element={
+    <PrivateRoute>
+      <>
+        <Navbar />
+        <Projects />
+      </>
+    </PrivateRoute>
+  }
+/>
 
             {/* Catch all */}
             <Route path="*" element={<Navigate to="/" replace />} />
