@@ -9,25 +9,35 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const storedUser = authService.getStoredUser();
+    const token = localStorage.getItem('token');
+
     if (storedUser) {
       setUser(storedUser);
     }
-    authService.getCurrentUser()
-      .then((response) => {
-        if (response?.user) {
-          setUser(response.user);
-          localStorage.setItem('user', JSON.stringify(response.user));
-        } else {
+
+    // Only fetch current user if we have a token
+    if (token) {
+      authService.getCurrentUser()
+        .then((response) => {
+          if (response?.user) {
+            setUser(response.user);
+            localStorage.setItem('user', JSON.stringify(response.user));
+          } else {
+            setUser(null);
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+          }
+        })
+        .catch((error) => {
+          console.error('Error fetching current user:', error);
           setUser(null);
           localStorage.removeItem('user');
-        }
-      })
-      .catch((error) => {
-        console.error('Error fetching current user:', error);
-        setUser(null);
-        localStorage.removeItem('user');
-      })
-      .finally(() => setLoading(false));
+          localStorage.removeItem('token');
+        })
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
   }, []);
 
   const login = async (credentials) => {

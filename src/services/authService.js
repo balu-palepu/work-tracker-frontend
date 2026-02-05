@@ -1,14 +1,12 @@
 import api from './api';
 
-// Clean up legacy token from localStorage (tokens are now httpOnly cookies)
-if (localStorage.getItem('token')) {
-  localStorage.removeItem('token');
-}
-
 const authService = {
   // Register new user
   register: async (userData) => {
     const response = await api.post('/auth/register', userData);
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token);
+    }
     if (response.data.user) {
       localStorage.setItem('user', JSON.stringify(response.data.user));
     }
@@ -18,6 +16,9 @@ const authService = {
   // Login user
   login: async (credentials) => {
     const response = await api.post('/auth/login', credentials);
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token);
+    }
     if (response.data.user) {
       localStorage.setItem('user', JSON.stringify(response.data.user));
     }
@@ -31,8 +32,8 @@ const authService = {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
+      localStorage.removeItem('token');
       localStorage.removeItem('user');
-      localStorage.removeItem('token'); // Clean up legacy token if exists
     }
   },
 
