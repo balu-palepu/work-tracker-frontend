@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Calendar, Clock, Smile, Activity, ShieldCheck, List, FileText, PieChart, TrendingUp } from 'lucide-react';
 import { toast } from 'react-toastify';
 import activityService from '../services/activityService';
+import DeleteConfirmationModal from '../components/shared/DeleteConfirmationModal';
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
-  
+
   // FIXED: Separate state for selected date
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  
+
   const [activity, setActivity] = useState({
     date: new Date().toISOString().split('T')[0],
     meetings: [],
@@ -20,6 +21,8 @@ const Dashboard = () => {
   });
 
   const [modal, setModal] = useState({ isOpen: false, type: '', index: null, data: {} });
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, type: '', index: null, item: null });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // FIXED: Watch selectedDate instead of activity.date
   useEffect(() => {
@@ -99,7 +102,9 @@ const Dashboard = () => {
       const list = type === 'extra' ? 'extraActivities' : `${type}s`;
       const item = activity[list][index];
       const dur = type === 'task' ? item.timeSpent : item.duration;
-      initialData = { ...item, durationValue: dur?.toString() || '30' };
+      const normalizedStatus =
+        item?.status === 'inprogress' ? 'in-progress' : item?.status;
+      initialData = { ...item, status: normalizedStatus, durationValue: dur?.toString() || '30' };
     }
     setModal({ isOpen: true, type, index, data: initialData });
   };
@@ -112,8 +117,14 @@ const Dashboard = () => {
     // FIXED: Use selectedDate instead of activity.date
     const entryDate = new Date(selectedDate + 'T00:00:00');
 
+    const normalizedStatus =
+      modal.type === 'task' && modal.data?.status === 'inprogress'
+        ? 'in-progress'
+        : modal.data?.status;
+
     const entryData = { 
-      ...modal.data, 
+      ...modal.data,
+      status: normalizedStatus,
       [durationKey]: mins,
       isConfidential: true,
       startTime: entryDate, 
@@ -132,13 +143,28 @@ const Dashboard = () => {
     await syncWithBackend(updatedActivity);
   };
 
-  const handleDelete = async (type, index) => {
-    if (!window.confirm("Are you sure you want to delete this entry?")) return;
+  const openDeleteModal = (type, index) => {
     const listName = type === 'extra' ? 'extraActivities' : `${type}s`;
-    const newList = activity[listName].filter((_, i) => i !== index);
-    const updatedActivity = { ...activity, [listName]: newList };
-    setActivity(updatedActivity);
-    await syncWithBackend(updatedActivity);
+    const item = activity[listName][index];
+    setDeleteModal({ isOpen: true, type, index, item });
+  };
+
+  const handleDelete = async () => {
+    const { type, index } = deleteModal;
+    setIsDeleting(true);
+    try {
+      const listName = type === 'extra' ? 'extraActivities' : `${type}s`;
+      const newList = activity[listName].filter((_, i) => i !== index);
+      const updatedActivity = { ...activity, [listName]: newList };
+      setActivity(updatedActivity);
+      await syncWithBackend(updatedActivity);
+      toast.success('Entry deleted successfully');
+      setDeleteModal({ isOpen: false, type: '', index: null, item: null });
+    } catch (error) {
+      toast.error('Failed to delete entry');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const meetMins = activity.meetings.reduce((acc, i) => acc + (i.duration || 0), 0);
@@ -217,7 +243,7 @@ const Dashboard = () => {
             }}
             className="px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg"
           >
-            Next →
+            Next
           </button>
         </div>
       </div>
@@ -260,7 +286,7 @@ const Dashboard = () => {
                           <td className="px-6 py-4 text-right">
                             <div className="flex justify-end gap-1">
                               <button onClick={() => openModal(type, idx)} className="p-2 text-gray-400 hover:text-blue-600"><Edit size={18} /></button>
-                              <button onClick={() => handleDelete(type, idx)} className="p-2 text-gray-400 hover:text-red-600"><Trash2 size={18} /></button>
+                              <button onClick={() => openDeleteModal(type, idx)} className="p-2 text-gray-400 hover:text-red-600"><Trash2 size={18} /></button>
                             </div>
                           </td>
                         </tr>
@@ -299,7 +325,7 @@ const Dashboard = () => {
 
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <h3 className="font-bold mb-4 flex items-center gap-2 text-gray-700"><FileText size={20} className="text-gray-400" /> Daily Notes</h3>
-              <textarea className="w-full border-none bg-gray-50 rounded-xl p-3 text-sm h-32 outline-none focus:ring-1 focus:ring-blue-500 resize-none" placeholder="Daily reflections..." value={activity.notes} onChange={(e) => setActivity({...activity, notes: e.target.value})} onBlur={() => syncWithBackend({...activity, date: selectedDate})} />
+              <textarea className="w-full border-none bg-gray-50 rounded-xl p-3 text-sm h-32 outline-none focus:ring-1 focus:ring-blue-500 resize-none" placeholder="Enter Daily notes" value={activity.notes} onChange={(e) => setActivity({...activity, notes: e.target.value})} onBlur={() => syncWithBackend({...activity, date: selectedDate})} />
             </div>
           </div>
         </div>
@@ -338,7 +364,7 @@ const Dashboard = () => {
                     <div>
                       <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Status</label>
                       <select className="w-full border-gray-100 bg-gray-50 rounded-lg p-2 text-sm outline-none" value={modal.data.status} onChange={e => setModal({...modal, data: {...modal.data, status: e.target.value}})}>
-                        <option value="pending">Pending</option><option value="inprogress">In Progress</option><option value="completed">Completed</option>
+                        <option value="pending">Pending</option><option value="in-progress">In Progress</option><option value="completed">Completed</option>
                       </select>
                     </div>
                     <div>
@@ -382,6 +408,16 @@ const Dashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, type: '', index: null, item: null })}
+        onConfirm={handleDelete}
+        itemName={deleteModal.item?.title || 'this entry'}
+        itemType={deleteModal.type === 'extra' ? 'activity' : deleteModal.type}
+        loading={isDeleting}
+      />
     </div>
   );
 };

@@ -1,40 +1,85 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, User } from 'lucide-react';
+import { useTeam } from '../context/TeamContext';
+import teamService from '../services/teamService';
 
-const COLORS = [
-  { name: 'Blue', value: '#3B82F6' },
-  { name: 'Green', value: '#10B981' },
-  { name: 'Purple', value: '#8B5CF6' },
-  { name: 'Orange', value: '#F59E0B' },
-  { name: 'Red', value: '#EF4444' },
-  { name: 'Pink', value: '#EC4899' },
-  { name: 'Indigo', value: '#6366F1' },
-  { name: 'Teal', value: '#14B8A6' }
+const PROJECT_COLORS = [
+  '#3B82F6', // Blue
+  '#10B981', // Green
+  '#8B5CF6', // Purple
+  '#F59E0B', // Orange
+  '#EF4444', // Red
+  '#EC4899', // Pink
+  '#6366F1', // Indigo
+  '#14B8A6'  // Teal
 ];
 
+function getRandomProjectColor() {
+  return PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)];
+}
+
 const ProjectModal = ({ isOpen, onClose, onSubmit, initialData }) => {
+  const { currentTeam } = useTeam();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    color: '#3B82F6'
+    color: getRandomProjectColor(),
+    teamLeadId: '',
+    members: []
   });
   const [loading, setLoading] = useState(false);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
 
   useEffect(() => {
     if (initialData) {
       setFormData({
         name: initialData.name || '',
         description: initialData.description || '',
-        color: initialData.color || '#3B82F6'
+        color: initialData.color || '#3B82F6',
+        teamLeadId: initialData.teamLead?._id || '',
+        members: []
       });
     } else {
       setFormData({
         name: '',
         description: '',
-        color: '#3B82F6'
+        color: getRandomProjectColor(),
+        teamLeadId: '',
+        members: []
       });
     }
   }, [initialData, isOpen]);
+
+  useEffect(() => {
+    if (isOpen && !initialData && currentTeam) {
+      fetchTeamMembers();
+    }
+  }, [isOpen, initialData, currentTeam]);
+
+  const fetchTeamMembers = async () => {
+    if (!currentTeam) return;
+    
+    try {
+      setLoadingMembers(true);
+      const response = await teamService.getTeamMembers(currentTeam._id);
+      const members = response.data || [];
+      setTeamMembers(members.filter(m => m.status === 'active'));
+    } catch (error) {
+      console.error('Error fetching team members:', error);
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
+  const toggleMember = (userId) => {
+    setFormData(prev => ({
+      ...prev,
+      members: prev.members.includes(userId)
+        ? prev.members.filter(id => id !== userId)
+        : [...prev.members, userId]
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -81,7 +126,7 @@ const ProjectModal = ({ isOpen, onClose, onSubmit, initialData }) => {
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="e.g., Website Redesign"
+              placeholder="Enter Project Name"
               maxLength={100}
             />
           </div>
@@ -95,44 +140,72 @@ const ProjectModal = ({ isOpen, onClose, onSubmit, initialData }) => {
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              placeholder="Brief description of the project..."
+              placeholder="Enter Project Description"
               rows={3}
               maxLength={500}
             />
           </div>
 
-          {/* Color Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Project Color
-            </label>
-            <div className="grid grid-cols-4 gap-3">
-              {COLORS.map((color) => (
-                <button
-                  key={color.value}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, color: color.value })}
-                  className={`
-                    relative w-full h-12 rounded-lg transition-all
-                    ${formData.color === color.value
-                      ? 'ring-2 ring-offset-2 ring-gray-900 scale-105'
-                      : 'hover:scale-105'
-                    }
-                  `}
-                  style={{ backgroundColor: color.value }}
-                  title={color.name}
+          {/* Team Lead Selection - Only when creating */}
+          {!initialData && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Team Lead
+                </label>
+                <select
+                  value={formData.teamLeadId}
+                  onChange={(e) => setFormData({ ...formData, teamLeadId: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  {formData.color === color.value && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
-                        <div className="w-3 h-3 bg-gray-900 rounded-full" />
-                      </div>
-                    </div>
+                  <option value="">Select Team Lead</option>
+                  {teamMembers.map((member) => (
+                    <option key={member.user._id} value={member.user._id}>
+                      {member.user.name} ({member.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Team Members Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Assign Team Members
+                </label>
+                <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-lg p-3 space-y-2">
+                  {loadingMembers ? (
+                    <div className="text-center py-4 text-gray-500">Loading members...</div>
+                  ) : teamMembers.length === 0 ? (
+                    <div className="text-center py-4 text-gray-500">No team members available</div>
+                  ) : (
+                    teamMembers.map((member) => (
+                      <label
+                        key={member.user._id}
+                        className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formData.members.includes(member.user._id)}
+                          onChange={() => toggleMember(member.user._id)}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <div className="flex items-center space-x-2 flex-1">
+                          <User className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm text-gray-900">{member.user.name}</span>
+                          <span className="text-xs text-gray-500">({member.role})</span>
+                        </div>
+                      </label>
+                    ))
                   )}
-                </button>
-              ))}
-            </div>
-          </div>
+                </div>
+                {formData.members.length > 0 && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    {formData.members.length} member(s) selected
+                  </p>
+                )}
+              </div>
+            </>
+          )}
 
           {/* Actions */}
           <div className="flex justify-end space-x-3 pt-4">

@@ -10,18 +10,37 @@ const Login = () => {
     password: '',
   });
   const [loading, setLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  const isValidEmail = (email) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
+
+    if (name === 'email') {
+      if (!value) {
+        setEmailError('');
+      } else if (!isValidEmail(value)) {
+        setEmailError('Enter a valid email address');
+      } else {
+        setEmailError('');
+      }
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!isValidEmail(formData.email)) {
+      setEmailError('Enter a valid email address');
+      return;
+    }
     setLoading(true);
 
     try {
@@ -66,9 +85,16 @@ const Login = () => {
                   value={formData.email}
                   onChange={handleChange}
                   className="input-field pl-10"
-                  placeholder="you@example.com"
+                  placeholder="Enter Email Address"
+                  aria-invalid={!!emailError}
+                  aria-describedby={emailError ? 'login-email-error' : undefined}
                 />
               </div>
+              {emailError && (
+                <p id="login-email-error" className="mt-1 text-xs text-red-600">
+                  {emailError}
+                </p>
+              )}
             </div>
 
             <div>
@@ -87,7 +113,7 @@ const Login = () => {
                   value={formData.password}
                   onChange={handleChange}
                   className="input-field pl-10"
-                  placeholder="••••••••"
+                  placeholder="Enter Password"
                 />
               </div>
             </div>

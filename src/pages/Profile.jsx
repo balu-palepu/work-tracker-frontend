@@ -1,18 +1,25 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTeam } from '../context/TeamContext';
 import { toast } from 'react-toastify';
 import authService from '../services/authService';
 import { User, Mail, Lock, Save } from 'lucide-react';
 
 const Profile = () => {
   const { user, updateUser } = useAuth();
+  const { isAdmin, teamMembership } = useTeam();
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
 
   const [profileData, setProfileData] = useState({
     name: user?.name || '',
     email: user?.email || '',
   });
+
+  const reportingManagerName = user?.reportingManager?.name || user?.reportingManagerName || '';
+  const reportingManagerEmail = user?.reportingManager?.email || '';
+  const isTeamAdmin = typeof isAdmin === 'function' ? isAdmin() : false;
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -20,11 +27,25 @@ const Profile = () => {
     confirmPassword: '',
   });
 
+  const isValidEmail = (email) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
   const handleProfileChange = (e) => {
+    const { name, value } = e.target;
     setProfileData({
       ...profileData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
+
+    if (name === 'email') {
+      if (!value) {
+        setEmailError('');
+      } else if (!isValidEmail(value)) {
+        setEmailError('Enter a valid email address');
+      } else {
+        setEmailError('');
+      }
+    }
   };
 
   const handlePasswordChange = (e) => {
@@ -36,6 +57,10 @@ const Profile = () => {
 
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
+    if (!isValidEmail(profileData.email)) {
+      setEmailError('Enter a valid email address');
+      return;
+    }
     setLoading(true);
 
     try {
@@ -76,7 +101,16 @@ const Profile = () => {
         confirmPassword: '',
       });
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Error changing password');
+      const message =
+        error.response?.data?.message ||
+        error.userMessage ||
+        error.message ||
+        'Error changing password';
+      if (message.toLowerCase().includes('incorrect')) {
+        toast.error('Old password is incorrect');
+      } else {
+        toast.error(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -162,8 +196,15 @@ const Profile = () => {
                   onChange={handleProfileChange}
                   required
                   className="input-field pl-10"
+                  aria-invalid={!!emailError}
+                  aria-describedby={emailError ? 'profile-email-error' : undefined}
                 />
               </div>
+              {emailError && (
+                <p id="profile-email-error" className="mt-1 text-xs text-red-600">
+                  {emailError}
+                </p>
+              )}
             </div>
 
             <div className="pt-4">
@@ -201,7 +242,7 @@ const Profile = () => {
                   onChange={handlePasswordChange}
                   required
                   className="input-field pl-10"
-                  placeholder="••••••••"
+                  placeholder="Enter Current Password"
                 />
               </div>
             </div>
@@ -223,7 +264,7 @@ const Profile = () => {
                   required
                   minLength={8}
                   className="input-field pl-10"
-                  placeholder="••••••••"
+                  placeholder="Enter New Password"
                 />
               </div>
               <p className="mt-1 text-xs text-gray-500">At least 8 characters</p>
@@ -245,7 +286,7 @@ const Profile = () => {
                   onChange={handlePasswordChange}
                   required
                   className="input-field pl-10"
-                  placeholder="••••••••"
+                  placeholder="Enter Confirm New Password"
                 />
               </div>
             </div>
@@ -274,7 +315,17 @@ const Profile = () => {
           </div>
           <div className="flex justify-between py-2 border-b border-gray-200">
             <span className="text-gray-600">Role</span>
-            <span className="font-medium text-gray-900 capitalize">{user?.role}</span>
+            <span className="font-medium text-gray-900 capitalize">
+              {teamMembership?.role || user?.role || 'member'}
+            </span>
+          </div>
+          <div className="flex justify-between py-2 border-b border-gray-200">
+            <span className="text-gray-600">Manager</span>
+            <span className="font-medium text-gray-900">
+              {user?.role === 'admin' || isTeamAdmin
+                ? 'Self'
+                : reportingManagerName || 'Not assigned'}
+            </span>
           </div>
           <div className="flex justify-between py-2">
             <span className="text-gray-600">Member Since</span>

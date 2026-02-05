@@ -2,7 +2,9 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { TeamProvider } from './context/TeamContext';
+import { SprintProvider } from './context/SprintContext';
 import PrivateRoute from './components/PrivateRoute';
 import Navbar from './components/Navbar';
 import Login from './pages/Login';
@@ -12,42 +14,97 @@ import History from './pages/History';
 import Statistics from './pages/Statistics';
 import Profile from './pages/Profile';
 import Projects from './pages/Projects';
+import TeamSelection from './pages/TeamSelection';
+import TeamSettings from './pages/TeamSettings';
+import TeamMembers from './pages/TeamMembers';
+import SprintList from './pages/SprintList';
+import SprintBoard from './pages/SprintBoard';
+import Backlog from './pages/Backlog';
+import AdminDashboard from './pages/AdminDashboard';
+import BandwidthReports from './pages/BandwidthReports';
+import CreateBandwidthReport from './pages/CreateBandwidthReport';
+import TeamAnalytics from './components/admin/TeamAnalytics';
+import TeamActivity from './pages/TeamActivity';
 
-function App() {
-  return (
-    <AuthProvider>
-      <Router>
-        <div className="min-h-screen bg-gray-50">
-          <ToastContainer
-            position="top-right"
-            autoClose={3000}
-            hideProgressBar={false}
-            newestOnTop
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-            theme="light"
-          />
-          
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+const AuthRedirect = () => {
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+  return <Navigate to={isAuthenticated ? '/teams' : '/login'} replace />;
+};
 
-            {/* Private routes */}
-            <Route
-              path="/"
-              element={
-                <PrivateRoute>
-                  <>
-                    <Navbar />
-                    <Dashboard />
-                  </>
-                </PrivateRoute>
-              }
-            />
+const AppRoutes = () => (
+  <div className="min-h-screen bg-gray-50">
+    <ToastContainer
+      position="top-right"
+      autoClose={3000}
+      hideProgressBar={false}
+      newestOnTop
+      closeOnClick
+      rtl={false}
+      pauseOnFocusLoss
+      draggable
+      pauseOnHover
+      theme="light"
+    />
+
+    <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/" element={<AuthRedirect />} />
+
+              {/* Team selection */}
+              <Route
+                path="/teams"
+                element={
+                  <PrivateRoute>
+                    <TeamSelection />
+                  </PrivateRoute>
+                }
+              />
+
+              {/* Team-specific routes */}
+              <Route
+                path="/teams/:teamId/settings"
+                element={
+                  <PrivateRoute>
+                    <>
+                      <Navbar />
+                      <TeamSettings />
+                    </>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/teams/:teamId/members"
+                element={
+                  <PrivateRoute>
+                    <>
+                      <Navbar />
+                      <TeamMembers />
+                    </>
+                  </PrivateRoute>
+                }
+              />
+
+              {/* Private routes */}
+              <Route
+                path="/teams/:teamId"
+                element={
+                  <PrivateRoute>
+                    <>
+                      <Navbar />
+                      <Dashboard />
+                    </>
+                  </PrivateRoute>
+                }
+              />
             <Route
               path="/history"
               element={
@@ -94,11 +151,141 @@ function App() {
   }
 />
 
+            {/* Team-scoped projects route */}
+            <Route
+              path="/teams/:teamId/projects"
+              element={
+                <PrivateRoute>
+                  <>
+                    <Navbar />
+                    <Projects />
+                  </>
+                </PrivateRoute>
+              }
+            />
+
+              {/* Sprint routes */}
+            <Route
+              path="/teams/:teamId/projects/:projectId/sprints"
+              element={
+                <PrivateRoute>
+                  <>
+                    <Navbar />
+                    <SprintList />
+                  </>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/teams/:teamId/projects/:projectId"
+              element={
+                <PrivateRoute>
+                  <>
+                    <Navbar />
+                    <Projects />
+                  </>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/teams/:teamId/projects/:projectId/sprints/:sprintId"
+              element={
+                <PrivateRoute>
+                  <SprintBoard />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/teams/:teamId/projects/:projectId/backlog"
+                element={
+                  <PrivateRoute>
+                    <>
+                      <Navbar />
+                      <Backlog />
+                    </>
+                  </PrivateRoute>
+                }
+              />
+
+              {/* Admin routes */}
+              <Route
+                path="/teams/:teamId/admin"
+                element={
+                  <PrivateRoute>
+                    <>
+                      <Navbar />
+                      <AdminDashboard />
+                    </>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/teams/:teamId/admin/analytics"
+                element={
+                  <PrivateRoute>
+                    <>
+                      <Navbar />
+                      <div className="py-8">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                          <TeamAnalytics />
+                        </div>
+                      </div>
+                    </>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/teams/:teamId/team-activity"
+                element={
+                  <PrivateRoute>
+                    <>
+                      <Navbar />
+                      <TeamActivity />
+                    </>
+                  </PrivateRoute>
+                }
+              />
+
+              {/* Bandwidth routes */}
+              <Route
+                path="/teams/:teamId/bandwidth"
+                element={
+                  <PrivateRoute>
+                    <>
+                      <Navbar />
+                      <BandwidthReports />
+                    </>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/teams/:teamId/bandwidth/new"
+                element={
+                  <PrivateRoute>
+                    <>
+                      <Navbar />
+                      <CreateBandwidthReport />
+                    </>
+                  </PrivateRoute>
+                }
+              />
+
             {/* Catch all */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<AuthRedirect />} />
           </Routes>
         </div>
-      </Router>
+);
+
+function App() {
+  return (
+    <AuthProvider>
+      <TeamProvider>
+        <SprintProvider>
+          <Router>
+            <AppRoutes />
+          </Router>
+        </SprintProvider>
+      </TeamProvider>
     </AuthProvider>
   );
 }

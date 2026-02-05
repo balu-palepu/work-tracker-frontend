@@ -12,7 +12,22 @@ export const AuthProvider = ({ children }) => {
     if (storedUser) {
       setUser(storedUser);
     }
-    setLoading(false);
+    authService.getCurrentUser()
+      .then((response) => {
+        if (response?.user) {
+          setUser(response.user);
+          localStorage.setItem('user', JSON.stringify(response.user));
+        } else {
+          setUser(null);
+          localStorage.removeItem('user');
+        }
+      })
+      .catch((error) => {
+        console.error('Error fetching current user:', error);
+        setUser(null);
+        localStorage.removeItem('user');
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const login = async (credentials) => {
@@ -27,13 +42,19 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
-  const logout = () => {
-    authService.logout();
+  const logout = async () => {
+    await authService.logout();
     setUser(null);
+    // Clear team data on logout
+    localStorage.removeItem('currentTeamId');
   };
 
   const updateUser = (userData) => {
     setUser(userData);
+  };
+
+  const isSystemAdmin = () => {
+    return user?.role === 'admin';
   };
 
   const value = {
@@ -44,6 +65,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     updateUser,
     isAuthenticated: !!user,
+    isSystemAdmin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

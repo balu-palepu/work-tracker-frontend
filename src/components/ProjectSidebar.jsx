@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Folder, Edit2, Trash2 } from 'lucide-react';
 import ProjectModal from './ProjectModal';
+import DeleteConfirmationModal from './shared/DeleteConfirmationModal';
 
 const ProjectSidebar = ({
   projects,
@@ -8,10 +9,15 @@ const ProjectSidebar = ({
   onProjectSelect,
   onProjectCreate,
   onProjectUpdate,
-  onProjectDelete
+  onProjectDelete,
+  currentUser,
+  roleFilter,
+  onRoleFilterChange
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, project: null });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleCreate = () => {
     setEditingProject(null);
@@ -24,15 +30,20 @@ const ProjectSidebar = ({
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (project, e) => {
+  const openDeleteModal = (project, e) => {
     e.stopPropagation();
-    
-    if (window.confirm(`Are you sure you want to delete "${project.name}"? All tasks will be deleted.`)) {
-      try {
-        await onProjectDelete(project._id);
-      } catch (error) {
-        console.error('Delete error:', error);
-      }
+    setDeleteModal({ isOpen: true, project });
+  };
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await onProjectDelete(deleteModal.project._id);
+      setDeleteModal({ isOpen: false, project: null });
+    } catch (error) {
+      console.error('Delete error:', error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -50,12 +61,49 @@ const ProjectSidebar = ({
     }
   };
 
+  const getRoleBadge = (project) => {
+    const userId = currentUser?._id;
+    const createdById = project.createdBy?._id || project.createdBy;
+    const teamLeadId = project.teamLead?._id || project.teamLead;
+    const role = project.userRole;
+
+    let label = '';
+    if (role === 'owner' || createdById === userId) {
+      label = 'Lead';
+    } else if (teamLeadId && teamLeadId === userId) {
+      label = 'Lead';
+    } else if (role === 'manager') {
+      label = 'Lead';
+    } else if (role === 'viewer' || role === 'sme') {
+      label = 'Viewer';
+    } else if (role === 'contributor') {
+      label = 'Contributor';
+    } else if (role) {
+      label = role;
+    }
+
+    if (!label) return null;
+
+    const isGreen = ['Lead'].includes(label);
+    const classes = isGreen
+      ? 'bg-green-100 text-green-800 border-green-200'
+      : 'bg-orange-100 text-orange-800 border-orange-200';
+
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full border ${classes}`}>
+        {label}
+      </span>
+    );
+  };
+
   return (
     <>
       <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
         {/* Header */}
         <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Projects</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-gray-900">Projects</h2>
+          </div>
           <button
             onClick={handleCreate}
             className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
@@ -63,6 +111,19 @@ const ProjectSidebar = ({
             <Plus className="w-5 h-5" />
             <span>New Project</span>
           </button>
+          <div className="mt-3">
+            <select
+              value={roleFilter}
+              onChange={(e) => onRoleFilterChange?.(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white"
+            >
+              <option value="all">All Roles</option>
+              <option value="owner">Owner</option>
+              <option value="lead">Lead</option>
+              <option value="contributor">Contributor</option>
+              <option value="sme">SME</option>
+            </select>
+          </div>
         </div>
 
         {/* Projects List */}
@@ -109,6 +170,10 @@ const ProjectSidebar = ({
                   </div>
                 </div>
 
+                <div className="absolute top-3 right-3">
+                  {getRoleBadge(project)}
+                </div>
+
                 {/* Action Buttons */}
                 <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
@@ -119,7 +184,7 @@ const ProjectSidebar = ({
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={(e) => handleDelete(project, e)}
+                    onClick={(e) => openDeleteModal(project, e)}
                     className="p-1.5 bg-white rounded hover:bg-red-50 text-gray-600 hover:text-red-600 shadow-sm"
                     title="Delete project"
                   >
@@ -141,6 +206,16 @@ const ProjectSidebar = ({
         }}
         onSubmit={handleSubmit}
         initialData={editingProject}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, project: null })}
+        onConfirm={handleDelete}
+        itemName={deleteModal.project?.name || ''}
+        itemType="project"
+        loading={isDeleting}
       />
     </>
   );

@@ -12,14 +12,29 @@ const Register = () => {
     confirmPassword: '',
   });
   const [loading, setLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
   const { register } = useAuth();
   const navigate = useNavigate();
 
+  const isValidEmail = (email) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
+
+    if (name === 'email') {
+      if (!value) {
+        setEmailError('');
+      } else if (!isValidEmail(value)) {
+        setEmailError('Enter a valid email address');
+      } else {
+        setEmailError('');
+      }
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -27,6 +42,11 @@ const Register = () => {
 
     if (formData.password !== formData.confirmPassword) {
       toast.error('Passwords do not match');
+      return;
+    }
+
+    if (!isValidEmail(formData.email)) {
+      setEmailError('Enter a valid email address');
       return;
     }
 
@@ -80,7 +100,7 @@ const Register = () => {
                   value={formData.name}
                   onChange={handleChange}
                   className="input-field pl-10"
-                  placeholder="John Doe"
+                  placeholder="Enter Full Name"
                 />
               </div>
             </div>
@@ -101,9 +121,16 @@ const Register = () => {
                   value={formData.email}
                   onChange={handleChange}
                   className="input-field pl-10"
-                  placeholder="you@example.com"
+                  placeholder="Enter Email Address"
+                  aria-invalid={!!emailError}
+                  aria-describedby={emailError ? 'register-email-error' : undefined}
                 />
               </div>
+              {emailError && (
+                <p id="register-email-error" className="mt-1 text-xs text-red-600">
+                  {emailError}
+                </p>
+              )}
             </div>
 
             <div>
@@ -122,7 +149,7 @@ const Register = () => {
                   value={formData.password}
                   onChange={handleChange}
                   className="input-field pl-10"
-                  placeholder="••••••••"
+                  placeholder="Enter Password"
                   minLength={8}
                 />
               </div>
@@ -145,7 +172,7 @@ const Register = () => {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   className="input-field pl-10"
-                  placeholder="••••••••"
+                  placeholder="Enter Confirm Password"
                 />
               </div>
             </div>

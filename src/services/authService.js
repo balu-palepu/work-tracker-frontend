@@ -1,11 +1,15 @@
 import api from './api';
 
+// Clean up legacy token from localStorage (tokens are now httpOnly cookies)
+if (localStorage.getItem('token')) {
+  localStorage.removeItem('token');
+}
+
 const authService = {
   // Register new user
   register: async (userData) => {
     const response = await api.post('/auth/register', userData);
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
+    if (response.data.user) {
       localStorage.setItem('user', JSON.stringify(response.data.user));
     }
     return response.data;
@@ -14,18 +18,22 @@ const authService = {
   // Login user
   login: async (credentials) => {
     const response = await api.post('/auth/login', credentials);
-    console.log("Testing")
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
+    if (response.data.user) {
       localStorage.setItem('user', JSON.stringify(response.data.user));
     }
     return response.data;
   },
 
   // Logout user
-  logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+  logout: async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      localStorage.removeItem('user');
+      localStorage.removeItem('token'); // Clean up legacy token if exists
+    }
   },
 
   // Get current user
@@ -46,9 +54,6 @@ const authService = {
   // Change password
   changePassword: async (passwords) => {
     const response = await api.put('/auth/change-password', passwords);
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
-    }
     return response.data;
   },
 
@@ -60,7 +65,7 @@ const authService = {
 
   // Check if user is authenticated
   isAuthenticated: () => {
-    return !!localStorage.getItem('token');
+    return !!localStorage.getItem('user');
   },
 };
 

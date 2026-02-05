@@ -3,6 +3,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Plus, ListTodo, Zap, CheckCircle2 } from 'lucide-react';
 import TaskCard from './TaskCard';
 import TaskModal from './TaskModal';
+import TaskDetailsModal from './TaskDetailsModal';
 
 const COLUMNS = [
   {
@@ -37,11 +38,17 @@ const TrackingBoard = ({
   onTaskCreate,
   onTaskUpdate,
   onTaskDelete,
-  onTaskStatusChange
+  onTaskStatusChange,
+  assignees,
+  teamId,
+  projectId,
+  initialTaskId
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [defaultStatus, setDefaultStatus] = useState('todo');
+  const [detailTaskId, setDetailTaskId] = useState(null);
+  const [lastOpenedTaskId, setLastOpenedTaskId] = useState(null);
 
   const getTasksByStatus = (status) => {
     return tasks
@@ -67,7 +74,7 @@ const TrackingBoard = ({
     const newPosition = destination.index;
 
     // Update task status
-    onTaskStatusChange(draggableId, newStatus, newPosition);
+    onTaskStatusChange(draggableId, newStatus, newPosition, source.droppableId, source.index);
   };
 
   const handleCreateTask = (status) => {
@@ -95,6 +102,13 @@ const TrackingBoard = ({
       throw error;
     }
   };
+
+  React.useEffect(() => {
+    if (initialTaskId && initialTaskId !== lastOpenedTaskId) {
+      setDetailTaskId(initialTaskId);
+      setLastOpenedTaskId(initialTaskId);
+    }
+  }, [initialTaskId, lastOpenedTaskId]);
 
   if (loading) {
     return (
@@ -169,6 +183,7 @@ const TrackingBoard = ({
                                     isDragging={snapshot.isDragging}
                                     onEdit={() => handleEditTask(task)}
                                     onDelete={() => onTaskDelete(task._id)}
+                                    onOpen={() => setDetailTaskId(task._id)}
                                   />
                                 </div>
                               )}
@@ -195,6 +210,16 @@ const TrackingBoard = ({
         }}
         onSubmit={handleSubmit}
         initialData={editingTask}
+        assignees={assignees}
+      />
+
+      <TaskDetailsModal
+        isOpen={!!detailTaskId}
+        onClose={() => setDetailTaskId(null)}
+        teamId={teamId}
+        projectId={projectId}
+        taskId={detailTaskId}
+        assignees={assignees}
       />
     </>
   );

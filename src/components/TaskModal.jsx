@@ -3,13 +3,13 @@ import { X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const PRIORITIES = [
-  { value: 'low', label: 'Low', color: 'bg-green-100 text-green-700 border-green-300', icon: '🟢' },
-  { value: 'medium', label: 'Medium', color: 'bg-yellow-100 text-yellow-700 border-yellow-300', icon: '🟡' },
-  { value: 'high', label: 'High', color: 'bg-orange-100 text-orange-700 border-orange-300', icon: '🟠' },
-  { value: 'urgent', label: 'Urgent', color: 'bg-red-100 text-red-700 border-red-300', icon: '🔴' }
+  { value: 'low', label: 'Low', color: 'bg-green-100 text-green-700 border-green-300' },
+  { value: 'medium', label: 'Medium', color: 'bg-yellow-100 text-yellow-700 border-yellow-300' },
+  { value: 'high', label: 'High', color: 'bg-orange-100 text-orange-700 border-orange-300' },
+  { value: 'urgent', label: 'Urgent', color: 'bg-red-100 text-red-700 border-red-300' }
 ];
 
-const TaskModal = ({ isOpen, onClose, onSubmit, initialData }) => {
+const TaskModal = ({ isOpen, onClose, onSubmit, initialData, assignees = [] }) => {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
     title: '',
@@ -20,7 +20,24 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData }) => {
     assignedTo: user?._id || null
   });
   const [tagInput, setTagInput] = useState('');
+  const [mentionIds, setMentionIds] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  const assigneeOptions = React.useMemo(() => {
+    const options = [...assignees];
+    if (initialData?.assignedTo && !options.some((member) => member._id === initialData.assignedTo._id)) {
+      options.push(initialData.assignedTo);
+    }
+    return options;
+  }, [assignees, initialData]);
+
+  const findMemberIdByTag = (tag, options) => {
+    if (!tag || !tag.startsWith('@')) return null;
+    const name = tag.slice(1).trim().toLowerCase();
+    if (!name) return null;
+    const match = options.find((member) => member.name?.toLowerCase() === name);
+    return match?._id || null;
+  };
 
   useEffect(() => {
     if (initialData) {
@@ -32,6 +49,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData }) => {
         tags: initialData.tags || [],
         assignedTo: initialData.assignedTo?._id || user?._id || null
       });
+      setMentionIds([]);
     } else {
       setFormData({
         title: '',
@@ -42,15 +60,33 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData }) => {
         assignedTo: user?._id || null
       });
       setTagInput('');
+      setMentionIds([]);
     }
   }, [initialData, isOpen, user]);
+
+  useEffect(() => {
+    if (!formData.tags.length) {
+      setMentionIds([]);
+      return;
+    }
+    const tagMentions = formData.tags
+      .map((tag) => findMemberIdByTag(tag, assigneeOptions))
+      .filter(Boolean);
+    const uniqueMentions = Array.from(new Set(tagMentions));
+    setMentionIds(uniqueMentions);
+  }, [formData.tags, assigneeOptions]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      await onSubmit(formData);
+      const payload = {
+        ...formData,
+        assignedTo: formData.assignedTo || null,
+        mentions: mentionIds
+      };
+      await onSubmit(payload);
       onClose();
     } catch (error) {
       console.error('Submit error:', error);
@@ -60,20 +96,29 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData }) => {
   };
 
   const handleAddTag = () => {
-    if (tagInput.trim() && !formData.tags.includes(tagInput.trim())) {
+    const nextTag = tagInput.trim();
+    if (nextTag && !formData.tags.includes(nextTag)) {
       setFormData({
         ...formData,
-        tags: [...formData.tags, tagInput.trim()]
+        tags: [...formData.tags, nextTag]
       });
+      const mentionId = findMemberIdByTag(nextTag, assigneeOptions);
+      if (mentionId) {
+        setMentionIds((prev) => (prev.includes(mentionId) ? prev : [...prev, mentionId]));
+      }
       setTagInput('');
     }
   };
 
   const handleRemoveTag = (tagToRemove) => {
+    const mentionId = findMemberIdByTag(tagToRemove, assigneeOptions);
     setFormData({
       ...formData,
       tags: formData.tags.filter(tag => tag !== tagToRemove)
     });
+    if (mentionId) {
+      setMentionIds((prev) => prev.filter((id) => id !== mentionId));
+    }
   };
 
   const handleTagInputKeyDown = (e) => {
@@ -81,6 +126,27 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData }) => {
       e.preventDefault();
       handleAddTag();
     }
+  };
+
+  const mentionOptions = React.useMemo(() => {
+    const query = tagInput.trim().toLowerCase();
+    if (!query.startsWith('@')) return [];
+    const search = query.slice(1);
+    return assigneeOptions
+      .filter((member) => member.name?.toLowerCase().includes(search))
+      .slice(0, 6);
+  }, [tagInput, assigneeOptions]);
+
+  const handleAddMention = (member) => {
+    const mentionTag = `@${member.name}`;
+    if (!formData.tags.includes(mentionTag)) {
+      setFormData({
+        ...formData,
+        tags: [...formData.tags, mentionTag]
+      });
+    }
+    setMentionIds((prev) => (prev.includes(member._id) ? prev : [...prev, member._id]));
+    setTagInput('');
   };
 
   if (!isOpen) return null;
@@ -114,7 +180,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData }) => {
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="e.g., Design homepage mockup"
+              placeholder="Enter Task Title"
               maxLength={200}
             />
           </div>
@@ -128,7 +194,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData }) => {
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              placeholder="Add more details about this task..."
+              placeholder="Enter Task Description"
               rows={4}
             />
           </div>
@@ -140,25 +206,18 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData }) => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Priority
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <select
+                value={formData.priority}
+                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+                style={{ height: '42px' }}
+              >
                 {PRIORITIES.map((priority) => (
-                  <button
-                    key={priority.value}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, priority: priority.value })}
-                    className={`
-                      px-3 py-2 rounded-lg border-2 text-sm font-semibold transition-all
-                      ${formData.priority === priority.value
-                        ? priority.color + ' scale-105'
-                        : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-                      }
-                    `}
-                  >
-                    <span className="mr-1">{priority.icon}</span>
+                  <option key={priority.value} value={priority.value}>
                     {priority.label}
-                  </button>
+                  </option>
                 ))}
-              </div>
+              </select>
             </div>
 
             {/* Due Date */}
@@ -188,7 +247,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={handleTagInputKeyDown}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Add a tag..."
+                placeholder="Enter a tag or type @ to mention"
               />
               <button
                 type="button"
@@ -198,6 +257,20 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                 Add
               </button>
             </div>
+            {mentionOptions.length > 0 && (
+              <div className="mb-3 border border-gray-200 rounded-lg overflow-hidden">
+                {mentionOptions.map((member) => (
+                  <button
+                    key={member._id}
+                    type="button"
+                    onClick={() => handleAddMention(member)}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                  >
+                    @{member.name}
+                  </button>
+                ))}
+              </div>
+            )}
             {formData.tags.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {formData.tags.map((tag, index) => (
@@ -217,6 +290,26 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Assignee */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Assign To
+            </label>
+            <select
+              value={formData.assignedTo || ''}
+              onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+              style={{ height: '42px' }}
+            >
+              <option value="">Unassigned</option>
+              {assigneeOptions.map((member) => (
+                <option key={member._id} value={member._id}>
+                  {member.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Actions */}
