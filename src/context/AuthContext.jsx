@@ -11,33 +11,39 @@ export const AuthProvider = ({ children }) => {
     const storedUser = authService.getStoredUser();
     const token = localStorage.getItem('token');
 
-    if (storedUser) {
+    // If we have a stored user and token, trust it and don't validate immediately
+    // This prevents the redirect loop on page load after login
+    if (storedUser && token) {
       setUser(storedUser);
+      setLoading(false);
+      return;
     }
 
-    // Only fetch current user if we have a token
-    if (token) {
-      authService.getCurrentUser()
-        .then((response) => {
-          if (response?.user) {
-            setUser(response.user);
-            localStorage.setItem('user', JSON.stringify(response.user));
-          } else {
-            setUser(null);
-            localStorage.removeItem('user');
-            localStorage.removeItem('token');
-          }
-        })
-        .catch((error) => {
-          console.error('Error fetching current user:', error);
+    // No stored user or token - not logged in
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    // We have a token but no stored user - fetch user data
+    authService.getCurrentUser()
+      .then((response) => {
+        if (response?.user) {
+          setUser(response.user);
+          localStorage.setItem('user', JSON.stringify(response.user));
+        } else {
           setUser(null);
           localStorage.removeItem('user');
           localStorage.removeItem('token');
-        })
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
+        }
+      })
+      .catch((error) => {
+        console.error('Error fetching current user:', error);
+        setUser(null);
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const login = async (credentials) => {
