@@ -61,9 +61,9 @@ const Register = () => {
       const { confirmPassword, ...registerData } = formData;
       await register(registerData);
       toast.success('Registration successful!');
-      navigate('/');
+      navigate('/teams');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Registration failed. Please try again.');
+      toast.error(error.response?.data?.message || error.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }

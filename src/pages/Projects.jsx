@@ -598,7 +598,7 @@ const Projects = () => {
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0">
         {selectedProject ? (
           <>
             {/* Project Header */}
@@ -991,7 +991,7 @@ const Projects = () => {
             )}
 
             {/* Kanban Board */}
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 min-h-0">
               <TrackingBoard
                 tasks={filteredTasks}
                 loading={tasksLoading}

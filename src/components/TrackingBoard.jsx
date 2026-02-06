@@ -121,14 +121,14 @@ const TrackingBoard = ({
   return (
     <>
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="h-full overflow-x-auto">
-          <div className="min-w-full inline-flex p-6 gap-6 h-full">
+        <div className="h-full overflow-x-auto overflow-y-hidden">
+          <div className="min-w-full inline-flex p-5 gap-6 h-full">
             {COLUMNS.map((column) => {
               const columnTasks = getTasksByStatus(column.id);
               const IconComponent = column.icon;
 
               return (
-                <div key={column.id} className="flex-1 min-w-[350px] flex flex-col">
+                <div key={column.id} className="flex-1 min-w-[350px] flex flex-col h-full">
                   {/* Column Header */}
                   <div className={`${column.bgColor} ${column.borderColor} border-2 rounded-t-xl px-4 py-3 flex items-center justify-between`}>
                     <div className="flex items-center space-x-2">
@@ -154,10 +154,9 @@ const TrackingBoard = ({
                         ref={provided.innerRef}
                         {...provided.droppableProps}
                         className={`
-                          flex-1 ${column.bgColor} ${column.borderColor} border-2 border-t-0 rounded-b-xl p-3 space-y-3 overflow-y-auto
+                          flex-1 ${column.bgColor} ${column.borderColor} border-2 border-t-0 rounded-b-xl p-3 space-y-3 overflow-y-auto overflow-x-hidden
                           ${snapshot.isDraggingOver ? 'ring-2 ring-blue-400 ring-offset-2' : ''}
                         `}
-                        style={{ minHeight: '500px' }}
                       >
                         {columnTasks.length === 0 ? (
                           <div className="flex flex-col items-center justify-center h-48 text-gray-400">

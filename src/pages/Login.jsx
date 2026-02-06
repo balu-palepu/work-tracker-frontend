@@ -46,9 +46,9 @@ const Login = () => {
     try {
       await login(formData);
       toast.success('Login successful!');
-      navigate('/');
+      navigate('/teams');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Login failed. Please try again.');
+      toast.error(error.response?.data?.message || error.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
