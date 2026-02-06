@@ -609,6 +609,7 @@ const Projects = () => {
         onProjectUpdate={handleProjectUpdate}
         onProjectDelete={handleProjectDelete}
         currentUser={user}
+        isAdmin={isAdmin()}
         roleFilter={roleFilter}
         onRoleFilterChange={setRoleFilter}
       />

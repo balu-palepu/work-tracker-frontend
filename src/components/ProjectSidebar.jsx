@@ -11,6 +11,7 @@ const ProjectSidebar = ({
   onProjectUpdate,
   onProjectDelete,
   currentUser,
+  isAdmin = false,
   roleFilter,
   onRoleFilterChange
 }) => {
@@ -59,6 +60,13 @@ const ProjectSidebar = ({
     } catch (error) {
       throw error;
     }
+  };
+
+  // Check if current user can delete a project (creator or admin only)
+  const canDeleteProject = (project) => {
+    if (isAdmin) return true;
+    const createdById = project.createdBy?._id || project.createdBy;
+    return createdById === currentUser?._id;
   };
 
   const getRoleBadge = (project) => {
@@ -183,13 +191,15 @@ const ProjectSidebar = ({
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
-                  <button
-                    onClick={(e) => openDeleteModal(project, e)}
-                    className="p-1.5 bg-white rounded hover:bg-red-50 text-gray-600 hover:text-red-600 shadow-sm"
-                    title="Delete project"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {canDeleteProject(project) && (
+                    <button
+                      onClick={(e) => openDeleteModal(project, e)}
+                      className="p-1.5 bg-white rounded hover:bg-red-50 text-gray-600 hover:text-red-600 shadow-sm"
+                      title="Delete project"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))
