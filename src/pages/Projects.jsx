@@ -16,8 +16,8 @@ import MultiSelectDropdown from '../components/shared/MultiSelectDropdown';
 import { Folder, User, UserPlus, X, Users, Trash2, Plus, Calendar, ClipboardList } from 'lucide-react';
 
 const Projects = () => {
-  const { currentTeam, isAdmin, selectTeam } = useTeam();
-  const { user, isSystemAdmin } = useAuth();
+  const { currentTeam, isAdmin, selectTeam, loading: teamLoading } = useTeam();
+  const { user, isSystemAdmin, loading: authLoading } = useAuth();
   const { currentSprint, sprints, backlog, loadSprints, loadBacklog, clearSprintData } = useSprint();
   const navigate = useNavigate();
   const { teamId: teamIdParam, projectId: projectIdParam } = useParams();
@@ -45,23 +45,39 @@ const Projects = () => {
   const [sprintTasksLoading, setSprintTasksLoading] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, task: null });
   const [isDeleting, setIsDeleting] = useState(false);
+  // Initialize teamSelecting to true if we have a teamIdParam to prevent premature redirects
+  const [teamSelecting, setTeamSelecting] = useState(!!teamIdParam);
 
   useEffect(() => {
     if (teamIdParam && (!currentTeam || currentTeam._id !== teamIdParam)) {
-      selectTeam(teamIdParam).catch((error) => {
-        console.error('Error selecting team from route:', error);
-      });
+      setTeamSelecting(true);
+      selectTeam(teamIdParam)
+        .catch((error) => {
+          console.error('Error selecting team from route:', error);
+        })
+        .finally(() => {
+          setTeamSelecting(false);
+        });
+    } else if (teamIdParam && currentTeam && currentTeam._id === teamIdParam) {
+      // Team is already selected correctly, clear the selecting state
+      setTeamSelecting(false);
     }
   }, [teamIdParam, currentTeam, selectTeam]);
 
   useEffect(() => {
+    // Don't redirect while auth or team is still loading or being selected from URL
+    if (authLoading || teamLoading || teamSelecting) return;
+
+    // If we have a teamId in URL but no currentTeam yet, wait for selectTeam to complete
+    if (teamIdParam && !currentTeam) return;
+
     if (!currentTeam) {
       navigate('/teams');
       return;
     }
     fetchProjects();
     fetchTeamMembers();
-  }, [currentTeam, navigate]);
+  }, [currentTeam, authLoading, teamLoading, teamSelecting, teamIdParam, navigate]);
 
   useEffect(() => {
     if (selectedProject && currentTeam) {
@@ -574,7 +590,7 @@ const Projects = () => {
     }
   };
 
-  if (loading) {
+  if (loading || authLoading || teamLoading || teamSelecting) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -583,7 +599,7 @@ const Projects = () => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex min-h-screen bg-gray-50">
       {/* Left Sidebar */}
       <ProjectSidebar
         projects={filteredProjects}
@@ -598,7 +614,7 @@ const Projects = () => {
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex-1 flex flex-col">
         {selectedProject ? (
           <>
             {/* Project Header */}
@@ -991,7 +1007,7 @@ const Projects = () => {
             )}
 
             {/* Kanban Board */}
-            <div className="flex-1 min-h-0">
+            <div className="pb-6">
               <TrackingBoard
                 tasks={filteredTasks}
                 loading={tasksLoading}
@@ -1003,6 +1019,7 @@ const Projects = () => {
                 teamId={currentTeam?._id}
                 projectId={selectedProject?._id}
                 initialTaskId={taskIdParam}
+                sprintEndDate={displayedSprint?.endDate || activeSprint?.endDate}
               />
             </div>
           </>

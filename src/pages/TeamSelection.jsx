@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTeam } from '../context/TeamContext';
 import { useAuth } from '../context/AuthContext';
-import { Users, Plus, Settings, ArrowRight, Shield } from 'lucide-react';
+import { Users, Plus, Settings, ArrowRight, Shield, ChevronsRight } from 'lucide-react';
 
 const TeamSelection = () => {
   const navigate = useNavigate();
@@ -89,7 +89,7 @@ const TeamSelection = () => {
                     </span>
                   </div>
                 </div>
-                <ArrowRight className="w-5 h-5 text-gray-400" />
+                <ChevronsRight className="w-5 h-5 text-gray-400" />
               </div>
               {team.description && (
                 <p className="text-gray-600 text-sm mb-4">{team.description}</p>

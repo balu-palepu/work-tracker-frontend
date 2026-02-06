@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { TeamProvider } from './context/TeamContext';
+import { TeamProvider, useTeam } from './context/TeamContext';
 import { SprintProvider } from './context/SprintContext';
 import PrivateRoute from './components/PrivateRoute';
 import Navbar from './components/Navbar';
@@ -27,15 +27,29 @@ import TeamAnalytics from './components/admin/TeamAnalytics';
 import TeamActivity from './pages/TeamActivity';
 
 const AuthRedirect = () => {
-  const { isAuthenticated, loading } = useAuth();
-  if (loading) {
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { currentTeam, loading: teamLoading } = useTeam();
+
+  // Wait for both auth and team to finish loading
+  if (authLoading || teamLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     );
   }
-  return <Navigate to={isAuthenticated ? '/teams' : '/login'} replace />;
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Redirect to current team's dashboard if a team is selected
+  if (currentTeam) {
+    return <Navigate to={`/teams/${currentTeam._id}`} replace />;
+  }
+
+  // No team selected, go to team selection page
+  return <Navigate to="/teams" replace />;
 };
 
 const AppRoutes = () => (

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTeam } from '../context/TeamContext';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, ArrowLeft, Trash2 } from 'lucide-react';
+import { Save, ArrowLeft, Trash2, ChevronsLeft } from 'lucide-react';
 import { toast } from 'react-toastify';
 import DeleteConfirmationModal from '../components/shared/DeleteConfirmationModal';
 
@@ -107,7 +107,7 @@ const TeamSettings = () => {
             onClick={() => navigate(`/teams/${teamId}`)}
             className="flex items-center text-gray-600 hover:text-gray-900"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ChevronsLeft className="w-4 h-4 mr-2" />
             Back to Dashboard
           </button>
         </div>

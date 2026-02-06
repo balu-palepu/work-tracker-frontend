@@ -9,7 +9,7 @@ const PRIORITIES = [
   { value: 'urgent', label: 'Urgent', color: 'bg-red-100 text-red-700 border-red-300' }
 ];
 
-const TaskModal = ({ isOpen, onClose, onSubmit, initialData, assignees = [] }) => {
+const TaskModal = ({ isOpen, onClose, onSubmit, initialData, assignees = [], sprintEndDate }) => {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
     title: '',
@@ -51,18 +51,22 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData, assignees = [] }) =
       });
       setMentionIds([]);
     } else {
+      // Format sprint end date as YYYY-MM-DD for the date input
+      const defaultDueDate = sprintEndDate
+        ? new Date(sprintEndDate).toISOString().split('T')[0]
+        : '';
       setFormData({
         title: '',
         description: '',
         priority: 'medium',
-        dueDate: '',
+        dueDate: defaultDueDate,
         tags: [],
         assignedTo: user?._id || null
       });
       setTagInput('');
       setMentionIds([]);
     }
-  }, [initialData, isOpen, user]);
+  }, [initialData, isOpen, user, sprintEndDate]);
 
   useEffect(() => {
     if (!formData.tags.length) {

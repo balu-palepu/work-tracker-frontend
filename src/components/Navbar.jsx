@@ -90,8 +90,8 @@ const Navbar = () => {
                 <>
                   {/* Regular users and admins see all navigation items */}
                   <Link
-                    to="/"
-                    className={getLinkClasses('/')}
+                    to={currentTeam ? `/teams/${currentTeam._id}` : '/teams'}
+                    className={getLinkClasses(currentTeam ? `/teams/${currentTeam._id}` : '/teams')}
                   >
                     Today
                   </Link>

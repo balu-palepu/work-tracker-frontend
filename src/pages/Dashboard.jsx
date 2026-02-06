@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Calendar, Clock, Smile, Activity, ShieldCheck, List, FileText, PieChart, TrendingUp } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, Clock, Smile, Activity, ShieldCheck, List, FileText, PieChart, TrendingUp, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { toast } from 'react-toastify';
 import activityService from '../services/activityService';
 import DeleteConfirmationModal from '../components/shared/DeleteConfirmationModal';
@@ -225,9 +225,9 @@ const Dashboard = () => {
               yesterday.setDate(yesterday.getDate() - 1);
               setSelectedDate(yesterday.toISOString().split('T')[0]);
             }}
-            className="px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg"
+            className="px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg flex gap-2"
           >
-            ← Previous
+            <ChevronsLeft className="h-5 w-5" /> Previous
           </button>
           <button 
             onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
@@ -241,9 +241,9 @@ const Dashboard = () => {
               tomorrow.setDate(tomorrow.getDate() + 1);
               setSelectedDate(tomorrow.toISOString().split('T')[0]);
             }}
-            className="px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg"
+            className="px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg flex gap-2"
           >
-            Next
+            Next <ChevronsRight className="h-5 w-5" />
           </button>
         </div>
       </div>
@@ -317,7 +317,7 @@ const Dashboard = () => {
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <h3 className="font-bold mb-4 flex items-center gap-2 text-gray-700"><Smile size={20} className="text-orange-500" /> Mood & Focus</h3>
               <select className="w-full border-gray-100 bg-gray-50 rounded-lg p-2 text-sm mb-4 outline-none" value={activity.mood} onChange={(e) => {const u = {...activity, mood: e.target.value, date: selectedDate}; setActivity(u); syncWithBackend(u);}}>
-                <option value="excellent">Excellent 😄</option><option value="good">Good 😊</option><option value="neutral">Neutral 😐</option><option value="tired">Tired 🥱</option><option value="stressed">Stressed 😫</option>
+                <option value="excellent">Excellent </option><option value="good">Good</option><option value="neutral">Neutral </option><option value="tired">Tired </option><option value="stressed">Stressed</option>
               </select>
               <div className="flex justify-between items-center mb-1"><label className="text-[10px] font-bold text-gray-400 uppercase">Productivity</label><span className="text-xs font-bold text-blue-600">{activity.productivity}/10</span></div>
               <input type="range" min="1" max="10" className="w-full h-1.5 bg-blue-100 rounded-lg appearance-none cursor-pointer" value={activity.productivity} onChange={(e) => setActivity({...activity, productivity: parseInt(e.target.value)})} onMouseUp={() => syncWithBackend({...activity, date: selectedDate})} />

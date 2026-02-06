@@ -42,7 +42,8 @@ const TrackingBoard = ({
   assignees,
   teamId,
   projectId,
-  initialTaskId
+  initialTaskId,
+  sprintEndDate
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -121,14 +122,14 @@ const TrackingBoard = ({
   return (
     <>
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="h-full overflow-x-auto overflow-y-hidden">
-          <div className="min-w-full inline-flex p-5 gap-6 h-full">
+        <div className="overflow-x-auto">
+          <div className="min-w-full inline-flex p-5 gap-6">
             {COLUMNS.map((column) => {
               const columnTasks = getTasksByStatus(column.id);
               const IconComponent = column.icon;
 
               return (
-                <div key={column.id} className="flex-1 min-w-[350px] flex flex-col h-full">
+                <div key={column.id} className="flex-1 min-w-[350px] flex flex-col">
                   {/* Column Header */}
                   <div className={`${column.bgColor} ${column.borderColor} border-2 rounded-t-xl px-4 py-3 flex items-center justify-between`}>
                     <div className="flex items-center space-x-2">
@@ -154,7 +155,7 @@ const TrackingBoard = ({
                         ref={provided.innerRef}
                         {...provided.droppableProps}
                         className={`
-                          flex-1 ${column.bgColor} ${column.borderColor} border-2 border-t-0 rounded-b-xl p-3 space-y-3 overflow-y-auto overflow-x-hidden
+                          ${column.bgColor} ${column.borderColor} border-2 border-t-0 rounded-b-xl p-3 space-y-3 overflow-y-auto overflow-x-hidden h-[750px]
                           ${snapshot.isDraggingOver ? 'ring-2 ring-blue-400 ring-offset-2' : ''}
                         `}
                       >
@@ -210,6 +211,7 @@ const TrackingBoard = ({
         onSubmit={handleSubmit}
         initialData={editingTask}
         assignees={assignees}
+        sprintEndDate={sprintEndDate}
       />
 
       <TaskDetailsModal

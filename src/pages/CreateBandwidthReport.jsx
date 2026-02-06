@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTeam } from '../context/TeamContext';
 import bandwidthService from '../services/bandwidthService';
 import projectService from '../services/projectService';
-import { Plus, Trash2, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, AlertCircle, ChevronLeft, ChevronsLeft } from 'lucide-react';
 
 const CreateBandwidthReport = () => {
   const { teamId } = useParams();
@@ -155,7 +155,7 @@ const CreateBandwidthReport = () => {
             to={`/teams/${teamId}/bandwidth`}
             className="inline-flex items-center text-blue-600 hover:text-blue-800 mb-4"
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ChevronsLeft className="h-4 w-4 mr-2" />
             Back to Reports
           </Link>
           <h1 className="text-3xl font-bold text-gray-900">Create Bandwidth Report</h1>

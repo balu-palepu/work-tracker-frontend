@@ -14,7 +14,7 @@ export const useTeam = () => {
 };
 
 export const TeamProvider = ({ children }) => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [currentTeam, setCurrentTeam] = useState(null);
   const [teams, setTeams] = useState([]);
   const [teamMembership, setTeamMembership] = useState(null);
@@ -31,13 +31,16 @@ export const TeamProvider = ({ children }) => {
 
   // Load teams when authenticated user changes
   useEffect(() => {
+    // Wait for auth to finish loading before making decisions
+    if (authLoading) return;
+
     if (user) {
       loadTeams();
     } else {
       resetTeamState();
       localStorage.removeItem('currentTeamId');
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   // Load teams from API
   const loadTeams = async () => {
@@ -51,8 +54,15 @@ export const TeamProvider = ({ children }) => {
       const savedTeamId = localStorage.getItem('currentTeamId');
       if (savedTeamId && teamsData.find(t => t._id === savedTeamId)) {
         await selectTeam(savedTeamId);
-      } else if (teamsData.length > 0) {
-        await selectTeam(teamsData[0]._id);
+      } else {
+        // Clear invalid saved team (user may have been removed from it)
+        if (savedTeamId) {
+          localStorage.removeItem('currentTeamId');
+        }
+        // Select first available team if any
+        if (teamsData.length > 0) {
+          await selectTeam(teamsData[0]._id);
+        }
       }
 
       setError(null);

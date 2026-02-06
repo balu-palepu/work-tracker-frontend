@@ -5,7 +5,7 @@ import teamService from '../services/teamService';
 import MultiSelectDropdown from '../components/shared/MultiSelectDropdown';
 import Pagination from '../components/shared/Pagination';
 import TableHeader from '../components/shared/TableHeader';
-import { Users, Plus, ArrowLeft, Mail, MoreVertical, Trash2, Edit2 } from 'lucide-react';
+import { Users, Plus, ArrowLeft, Mail, MoreVertical, Trash2, Edit2, ChevronsLeft } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { format } from 'date-fns';
 
@@ -305,7 +305,7 @@ const TeamMembers = () => {
             onClick={() => navigate(`/teams/${teamId}`)}
             className="flex items-center text-gray-600 hover:text-gray-900"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ChevronsLeft className="w-4 h-4 mr-2" />
             Back to Dashboard
           </button>
         </div>

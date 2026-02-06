@@ -12,7 +12,8 @@ import {
   Activity,
   AlertCircle,
   Award,
-  ArrowRight
+  ArrowRight,
+  ChevronsRight
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -301,7 +302,7 @@ const AdminDashboard = () => {
               to={`/teams/${teamId}/members`}
               className="text-sm text-blue-600 hover:text-blue-800 font-medium mt-4 inline-block flex items-center gap-2"
             >
-              View or Manage Members <ArrowRight className="h-4 w-4" />
+              View or Manage Members <ChevronsRight className="h-4 w-4" />
             </Link>
           </div>
 
@@ -322,7 +323,7 @@ const AdminDashboard = () => {
               to={`/teams/${teamId}/projects`}
               className="text-sm text-green-600 hover:text-green-800 font-medium mt-4 inline-block flex items-center gap-2"
             >
-              View or Manage Projects <ArrowRight className="h-4 w-4" />
+              View or Manage Projects <ChevronsRight className="h-4 w-4" />
             </Link>
           </div>
         </div>

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useSprint } from '../context/SprintContext';
 import { useTeam } from '../context/TeamContext';
-import { CheckCircle, XCircle, TrendingUp, Calendar, Target, ArrowLeft } from 'lucide-react';
+import { CheckCircle, XCircle, TrendingUp, Calendar, Target, ArrowLeft, ChevronLeft, ChevronsLeft } from 'lucide-react';
 import TrackingBoard from '../components/TrackingBoard';
 import BurndownChart from '../components/sprint/BurndownChart';
 import taskService from '../services/taskService';
@@ -198,7 +198,7 @@ const SprintBoard = () => {
             onClick={() => navigate(`/teams/${currentTeam._id}/projects/${projectId}/sprints`)}
             className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ChevronsLeft className="w-4 h-4 mr-2" />
             Back to Sprints
           </button>
 

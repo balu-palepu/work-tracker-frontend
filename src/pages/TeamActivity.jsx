@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTeam } from '../context/TeamContext';
 import adminService from '../services/adminService';
 import teamService from '../services/teamService';
-import { AlertCircle, ArrowLeft, Clock, Users, CheckCircle } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Clock, Users, CheckCircle, ChevronsLeft } from 'lucide-react';
 
 const TeamActivity = () => {
   const { teamId } = useParams();
@@ -130,7 +130,7 @@ const TeamActivity = () => {
             onClick={() => navigate(`/teams/${teamId}`)}
             className="flex items-center text-gray-600 hover:text-gray-900"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ChevronsLeft className="w-4 h-4 mr-2" />
             Back to Dashboard
           </button>
         </div>

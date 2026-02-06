@@ -93,7 +93,7 @@ const TaskCard = ({ task, isDragging, onEdit, onDelete, onOpen }) => {
 
       {/* Description */}
       {task.description && (
-        <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+        <p className="text-sm text-gray-600 mb-3 line-clamp-1">
           {task.description}
         </p>
       )}
