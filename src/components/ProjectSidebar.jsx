@@ -69,6 +69,26 @@ const ProjectSidebar = ({
     return createdById === currentUser?._id;
   };
 
+  // Check if current user can edit a project (admin, team lead, manager, owner, or SME only - NOT regular members/contributors)
+  const canEditProject = (project) => {
+    if (isAdmin) return true;
+    const userId = currentUser?._id;
+    const createdById = project.createdBy?._id || project.createdBy;
+    const teamLeadId = project.teamLead?._id || project.teamLead;
+    const role = project.userRole;
+
+    // Owner/creator can edit
+    if (createdById && userId && createdById === userId) return true;
+    // Team lead can edit
+    if (teamLeadId && userId && teamLeadId === userId) return true;
+    // Manager role can edit
+    if (role === 'owner' || role === 'manager') return true;
+    // SME/viewer can edit
+    if (role === 'viewer' || role === 'sme') return true;
+    // Contributors (regular members) cannot edit
+    return false;
+  };
+
   const getRoleBadge = (project) => {
     const userId = currentUser?._id;
     const createdById = project.createdBy?._id || project.createdBy;
@@ -184,13 +204,15 @@ const ProjectSidebar = ({
 
                 {/* Action Buttons */}
                 <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={(e) => handleEdit(project, e)}
-                    className="p-1.5 bg-white rounded hover:bg-blue-50 text-gray-600 hover:text-blue-600 shadow-sm"
-                    title="Edit project"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
+                  {canEditProject(project) && (
+                    <button
+                      onClick={(e) => handleEdit(project, e)}
+                      className="p-1.5 bg-white rounded hover:bg-blue-50 text-gray-600 hover:text-blue-600 shadow-sm"
+                      title="Edit project"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                  )}
                   {canDeleteProject(project) && (
                     <button
                       onClick={(e) => openDeleteModal(project, e)}
