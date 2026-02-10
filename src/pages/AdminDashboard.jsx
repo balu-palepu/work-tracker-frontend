@@ -2,8 +2,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTeam } from '../context/TeamContext';
 import adminService from '../services/adminService';
+import reportService from '../services/reportService';
 import ProjectManagerView from '../components/admin/ProjectManagerView';
 import Pagination from '../components/shared/Pagination';
+import DownloadReportButton from '../components/shared/DownloadReportButton';
 import {
   Users,
   FolderKanban,
@@ -13,7 +15,10 @@ import {
   AlertCircle,
   Award,
   ArrowRight,
-  ChevronsRight
+  ChevronsRight,
+  FileText,
+  Calendar,
+  BarChart3
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -171,9 +176,45 @@ const AdminDashboard = () => {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="text-gray-600 mt-2">Team overview and management</p>
+        <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+            <p className="text-gray-600 mt-2">Team overview and management</p>
+          </div>
+          <DownloadReportButton
+            label="Download Reports"
+            variant="secondary"
+            options={[
+              {
+                key: 'team-info',
+                label: 'Team Info',
+                description: 'All team members details',
+                icon: <Users className="h-4 w-4" />,
+                action: () => reportService.downloadTeamInfo(teamId),
+              },
+              {
+                key: 'team-activity',
+                label: 'Team Activity Summary',
+                description: 'Monthly activity summary',
+                icon: <BarChart3 className="h-4 w-4" />,
+                action: () => reportService.downloadTeamActivitySummary(teamId, { period: 'monthly' }),
+              },
+              {
+                key: 'bandwidth',
+                label: 'Bandwidth Reports',
+                description: 'All bandwidth submissions',
+                icon: <Calendar className="h-4 w-4" />,
+                action: () => reportService.downloadBandwidthReport(teamId, {}),
+              },
+              {
+                key: 'projects',
+                label: 'Projects Report',
+                description: 'All projects overview',
+                icon: <FolderKanban className="h-4 w-4" />,
+                action: () => reportService.downloadProjectReport(teamId),
+              },
+            ]}
+          />
         </div>
 
         {/* Analytics Summary */}
@@ -381,10 +422,42 @@ const AdminDashboard = () => {
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-xl font-semibold text-gray-900">Team Members Activity</h2>
-              <span className="text-sm text-gray-500">
-                Total Entries: {activitySummary.entries}
-                {/* {activitySummary.users} users */}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-500">
+                  Total Entries: {activitySummary.entries}
+                </span>
+                <DownloadReportButton
+                  label="Download"
+                  variant="secondary"
+                  options={[
+                    {
+                      key: 'activity-current',
+                      label: 'Current View',
+                      description: `${dateFrom} to ${dateTo}`,
+                      icon: <FileText className="h-4 w-4" />,
+                      action: () => reportService.downloadActivityReport(teamId, {
+                        startDate: dateFrom,
+                        endDate: dateTo,
+                        userId: selectedMember !== 'all' ? selectedMember : undefined,
+                      }),
+                    },
+                    {
+                      key: 'activity-weekly',
+                      label: 'Weekly Report',
+                      description: 'Last 7 days',
+                      icon: <Calendar className="h-4 w-4" />,
+                      action: () => reportService.downloadActivityReport(teamId, { period: 'weekly' }),
+                    },
+                    {
+                      key: 'activity-monthly',
+                      label: 'Monthly Report',
+                      description: 'Last 30 days',
+                      icon: <Calendar className="h-4 w-4" />,
+                      action: () => reportService.downloadActivityReport(teamId, { period: 'monthly' }),
+                    },
+                  ]}
+                />
+              </div>
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2 text-sm text-gray-600">

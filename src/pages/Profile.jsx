@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTeam } from '../context/TeamContext';
 import { toast } from 'react-toastify';
 import authService from '../services/authService';
-import { User, Mail, Lock, Save } from 'lucide-react';
+import { User, Mail, Lock, Save, Check, X, Eye, EyeOff } from 'lucide-react';
 
 const Profile = () => {
   const { user, updateUser } = useAuth();
@@ -26,9 +26,29 @@ const Profile = () => {
     newPassword: '',
     confirmPassword: '',
   });
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const isValidEmail = (email) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  // Password strength validation
+  const passwordRequirements = useMemo(() => {
+    const password = passwordData.newPassword;
+    return {
+      minLength: password.length >= 8,
+      hasLowercase: /[a-z]/.test(password),
+      hasUppercase: /[A-Z]/.test(password),
+      hasNumber: /[0-9]/.test(password),
+      hasSpecial: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
+      passwordsMatch: password && password === passwordData.confirmPassword,
+    };
+  }, [passwordData.newPassword, passwordData.confirmPassword]);
+
+  const isPasswordValid = useMemo(() => {
+    return Object.values(passwordRequirements).every(Boolean);
+  }, [passwordRequirements]);
 
   const handleProfileChange = (e) => {
     const { name, value } = e.target;
@@ -235,15 +255,22 @@ const Profile = () => {
                   <Lock className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
-                  type="password"
+                  type={showCurrentPassword ? "text" : "password"}
                   id="currentPassword"
                   name="currentPassword"
                   value={passwordData.currentPassword}
                   onChange={handlePasswordChange}
                   required
-                  className="input-field pl-10"
+                  className="input-field pl-10 pr-10"
                   placeholder="Enter Current Password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                  {showCurrentPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
             </div>
 
@@ -256,18 +283,53 @@ const Profile = () => {
                   <Lock className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
-                  type="password"
+                  type={showNewPassword ? "text" : "password"}
                   id="newPassword"
                   name="newPassword"
                   value={passwordData.newPassword}
                   onChange={handlePasswordChange}
                   required
                   minLength={8}
-                  className="input-field pl-10"
+                  className="input-field pl-10 pr-10"
                   placeholder="Enter New Password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                  {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
-              <p className="mt-1 text-xs text-gray-500">At least 8 characters</p>
+
+              {/* Password Requirements */}
+              {passwordData.newPassword && (
+                <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs font-medium text-gray-700 mb-2">Password Requirements:</p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className={`flex items-center space-x-1 ${passwordRequirements.minLength ? 'text-green-600' : 'text-gray-500'}`}>
+                      {passwordRequirements.minLength ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                      <span>At least 8 characters</span>
+                    </div>
+                    <div className={`flex items-center space-x-1 ${passwordRequirements.hasLowercase ? 'text-green-600' : 'text-gray-500'}`}>
+                      {passwordRequirements.hasLowercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                      <span>One lowercase letter</span>
+                    </div>
+                    <div className={`flex items-center space-x-1 ${passwordRequirements.hasUppercase ? 'text-green-600' : 'text-gray-500'}`}>
+                      {passwordRequirements.hasUppercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                      <span>One uppercase letter</span>
+                    </div>
+                    <div className={`flex items-center space-x-1 ${passwordRequirements.hasNumber ? 'text-green-600' : 'text-gray-500'}`}>
+                      {passwordRequirements.hasNumber ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                      <span>One number</span>
+                    </div>
+                    <div className={`flex items-center space-x-1 ${passwordRequirements.hasSpecial ? 'text-green-600' : 'text-gray-500'}`}>
+                      {passwordRequirements.hasSpecial ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                      <span>One special character</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
@@ -279,23 +341,36 @@ const Profile = () => {
                   <Lock className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
-                  type="password"
+                  type={showConfirmPassword ? "text" : "password"}
                   id="confirmPassword"
                   name="confirmPassword"
                   value={passwordData.confirmPassword}
                   onChange={handlePasswordChange}
                   required
-                  className="input-field pl-10"
+                  className="input-field pl-10 pr-10"
                   placeholder="Enter Confirm New Password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
+              {passwordData.confirmPassword && (
+                <p className={`mt-1 text-xs flex items-center space-x-1 ${passwordRequirements.passwordsMatch ? 'text-green-600' : 'text-red-600'}`}>
+                  {passwordRequirements.passwordsMatch ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                  <span>{passwordRequirements.passwordsMatch ? 'Passwords match' : 'Passwords do not match'}</span>
+                </p>
+              )}
             </div>
 
             <div className="pt-4">
               <button
                 type="submit"
-                disabled={loading}
-                className="btn-primary flex items-center space-x-2"
+                disabled={loading || !isPasswordValid}
+                className="btn-primary flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save className="h-5 w-5" />
                 <span>{loading ? 'Changing...' : 'Change Password'}</span>

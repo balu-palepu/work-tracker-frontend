@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTeam } from '../context/TeamContext';
 import teamService from '../services/teamService';
+import adminService from '../services/adminService';
 import MultiSelectDropdown from '../components/shared/MultiSelectDropdown';
 import Pagination from '../components/shared/Pagination';
 import TableHeader from '../components/shared/TableHeader';
-import { Users, Plus, ArrowLeft, Mail, MoreVertical, Trash2, Edit2, ChevronsLeft } from 'lucide-react';
+import { Users, Plus, Mail, MoreVertical, Trash2, Edit2, ChevronsLeft, AlertTriangle, Unlock, Clock } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { format } from 'date-fns';
 
@@ -44,11 +45,45 @@ const TeamMembers = () => {
   const [editManager, setEditManager] = useState('');
   const [updating, setUpdating] = useState(false);
 
+  // Locked accounts
+  const [lockedAccounts, setLockedAccounts] = useState([]);
+  const [loadingLocked, setLoadingLocked] = useState(false);
+  const [unlockingUser, setUnlockingUser] = useState(null);
+
   useEffect(() => {
     if (teamId) {
       loadMembers();
+      loadLockedAccounts();
     }
   }, [teamId, currentPage, sortField, sortOrder, searchTerm]);
+
+  const loadLockedAccounts = async () => {
+    // Check permission inside the function since hasTeamPermission may not be ready
+    if (!hasTeamPermission('canManageTeam')) return;
+    try {
+      setLoadingLocked(true);
+      const response = await adminService.getLockedAccounts(teamId);
+      setLockedAccounts(response.data || []);
+    } catch (error) {
+      console.error('Error loading locked accounts:', error);
+    } finally {
+      setLoadingLocked(false);
+    }
+  };
+
+  const handleUnlockAccount = async (userId, userName) => {
+    try {
+      setUnlockingUser(userId);
+      await adminService.unlockAccount(teamId, userId);
+      toast.success(`Account for ${userName} has been unlocked`);
+      loadLockedAccounts();
+    } catch (error) {
+      console.error('Error unlocking account:', error);
+      toast.error(error.response?.data?.message || 'Failed to unlock account');
+    } finally {
+      setUnlockingUser(null);
+    }
+  };
 
   const loadMembers = async () => {
     try {
@@ -343,6 +378,64 @@ const TeamMembers = () => {
             />
           </div>
 
+          {/* Locked Accounts Alert */}
+          {canManageMembers && lockedAccounts.length > 0 && (
+            <div className="px-6 py-4 border-b border-gray-200 bg-amber-50">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-amber-800">
+                    {lockedAccounts.length} Locked Account{lockedAccounts.length !== 1 ? 's' : ''}
+                  </h3>
+                  <p className="text-sm text-amber-700 mt-1">
+                    The following accounts are locked due to too many failed login attempts:
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    {lockedAccounts.map((user) => (
+                      <div
+                        key={user._id}
+                        className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-amber-200"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+                            <span className="text-xs font-semibold text-amber-700">
+                              {user.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <span>{user.email}</span>
+                              {user.isLocked && user.lockExpiresIn && (
+                                <span className="flex items-center gap-1 text-amber-600">
+                                  <Clock className="h-3 w-3" />
+                                  Expires in {user.lockExpiresIn} min
+                                </span>
+                              )}
+                              {!user.isLocked && user.loginAttempts > 0 && (
+                                <span className="text-gray-500">
+                                  ({user.loginAttempts} failed attempts)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleUnlockAccount(user._id, user.name)}
+                          disabled={unlockingUser === user._id}
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          <Unlock className="h-4 w-4" />
+                          {unlockingUser === user._id ? 'Unlocking...' : 'Unlock'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Members Table */}
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -368,16 +461,24 @@ const TeamMembers = () => {
                   </tr>
                 ) : (
                   members.map((member) => (
-                    <tr key={member._id} className="hover:bg-gray-50">
+                    <tr key={member._id} className={`hover:bg-gray-50 ${member.lockStatus?.isLocked ? 'bg-red-50' : ''}`}>
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                            <span className="text-sm font-semibold text-blue-600">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${member.lockStatus?.isLocked ? 'bg-red-100' : 'bg-blue-100'}`}>
+                            <span className={`text-sm font-semibold ${member.lockStatus?.isLocked ? 'text-red-600' : 'text-blue-600'}`}>
                               {member.user.name.charAt(0).toUpperCase()}
                             </span>
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-gray-900 truncate">{member.user.name}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium text-gray-900 truncate">{member.user.name}</p>
+                              {member.lockStatus?.isLocked && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                  <AlertTriangle className="w-3 h-3 mr-1" />
+                                  Locked
+                                </span>
+                              )}
+                            </div>
                             {member.customTitle && (
                               <p className="text-xs text-gray-500 truncate">{member.customTitle}</p>
                             )}
@@ -422,6 +523,19 @@ const TeamMembers = () => {
                                   <Edit2 className="w-4 h-4 mr-2" />
                                   Edit Role
                                 </button>
+                                {member.lockStatus?.isLocked && (
+                                  <button
+                                    onClick={() => {
+                                      handleUnlockAccount(member.user._id, member.user.name);
+                                      setActionMenuOpen(null);
+                                    }}
+                                    disabled={unlockingUser === member.user._id}
+                                    className="w-full px-4 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 flex items-center"
+                                  >
+                                    <Unlock className="w-4 h-4 mr-2" />
+                                    {unlockingUser === member.user._id ? 'Unlocking...' : 'Unlock Account'}
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => handleRemoveMember(member)}
                                   className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"

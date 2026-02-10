@@ -59,6 +59,20 @@ const adminService = {
     );
     return response.data;
   },
+
+  // Get locked accounts
+  getLockedAccounts: async (teamId) => {
+    const response = await api.get(`/teams/${teamId}/admin/locked-accounts`);
+    return response.data;
+  },
+
+  // Unlock a user account
+  unlockAccount: async (teamId, userId) => {
+    const response = await api.put(
+      `/teams/${teamId}/admin/members/${userId}/unlock`,
+    );
+    return response.data;
+  },
 };
 
 export default adminService;

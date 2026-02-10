@@ -4,8 +4,10 @@ import { toast } from 'react-toastify';
 import { useTeam } from '../context/TeamContext';
 import { Plus, Calendar } from 'lucide-react';
 import bandwidthService from '../services/bandwidthService';
+import reportService from '../services/reportService';
 import BandwidthReportForm from '../components/bandwidth/BandwidthReportForm';
 import DeleteConfirmationModal from '../components/shared/DeleteConfirmationModal';
+import DownloadReportButton from '../components/shared/DownloadReportButton';
 
 const BandwidthReports = () => {
   const navigate = useNavigate();
@@ -181,17 +183,57 @@ const BandwidthReports = () => {
                 : 'Submit your monthly bandwidth and project allocations'}
             </p>
           </div>
-          {!isTeamAdmin && (
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
-                'bg-blue-600 text-white hover:bg-blue-700'
-              }`}
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              New Report
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {isTeamAdmin && (
+              <DownloadReportButton
+                label="Download"
+                variant="secondary"
+                options={[
+                  {
+                    key: 'current-month',
+                    label: 'Current Month',
+                    description: `Bandwidth for ${monthNames[currentMonth - 1]}`,
+                    action: async () => {
+                      await reportService.downloadBandwidthReport(currentTeam._id, {
+                        month: currentMonth,
+                        year: now.getFullYear()
+                      });
+                    }
+                  },
+                  {
+                    key: 'selected-month',
+                    label: selectedMonth === 'all' ? 'All Months' : monthNames[selectedMonth - 1],
+                    description: selectedMonth === 'all' ? 'All bandwidth reports' : `Bandwidth for ${monthNames[selectedMonth - 1]}`,
+                    action: async () => {
+                      const params = selectedMonth === 'all'
+                        ? { year: now.getFullYear() }
+                        : { month: selectedMonth, year: now.getFullYear() };
+                      await reportService.downloadBandwidthReport(currentTeam._id, params);
+                    }
+                  },
+                  {
+                    key: 'full-year',
+                    label: 'Full Year',
+                    description: `All bandwidth reports for ${now.getFullYear()}`,
+                    action: async () => {
+                      await reportService.downloadBandwidthReport(currentTeam._id, {
+                        year: now.getFullYear()
+                      });
+                    }
+                  }
+                ]}
+              />
+            )}
+            {!isTeamAdmin && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center px-4 py-2 rounded-lg transition-colors bg-blue-600 text-white hover:bg-blue-700"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                New Report
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="mb-6 flex flex-wrap items-center gap-3">

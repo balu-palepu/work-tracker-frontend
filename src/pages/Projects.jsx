@@ -11,8 +11,10 @@ import taskService from '../services/taskService';
 import teamService from '../services/teamService';
 import projectMemberService from '../services/projectMemberService';
 import sprintService from '../services/sprintService';
+import reportService from '../services/reportService';
 import DeleteConfirmationModal from '../components/shared/DeleteConfirmationModal';
 import MultiSelectDropdown from '../components/shared/MultiSelectDropdown';
+import DownloadReportButton from '../components/shared/DownloadReportButton';
 import { Folder, User, UserPlus, X, Users, Trash2, Plus, Calendar, ClipboardList } from 'lucide-react';
 
 const Projects = () => {
@@ -651,6 +653,52 @@ const Projects = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
+                  {/* Download Reports Button - Only for admin/team lead/project manager */}
+                  {canManageMembers() && (
+                    <DownloadReportButton
+                      label="Download"
+                      variant="secondary"
+                      options={[
+                        {
+                          key: 'project-overview',
+                          label: 'Project Overview',
+                          description: 'Project details and statistics',
+                          icon: <Folder className="h-4 w-4" />,
+                          action: async () => {
+                            await reportService.downloadProjectReport(currentTeam._id, selectedProject._id);
+                          }
+                        },
+                        {
+                          key: 'all-tasks',
+                          label: 'All Tasks',
+                          description: 'All tasks in this project',
+                          icon: <ClipboardList className="h-4 w-4" />,
+                          action: async () => {
+                            await reportService.downloadProjectTasks(currentTeam._id, selectedProject._id);
+                          }
+                        },
+                        {
+                          key: 'backlog-tasks',
+                          label: 'Backlog Tasks',
+                          description: 'Tasks not assigned to sprints',
+                          icon: <ClipboardList className="h-4 w-4" />,
+                          action: async () => {
+                            await reportService.downloadProjectTasks(currentTeam._id, selectedProject._id, true);
+                          }
+                        },
+                        ...(displayedSprint ? [{
+                          key: 'current-sprint',
+                          label: `Sprint: ${displayedSprint.name}`,
+                          description: 'Tasks in the selected sprint',
+                          icon: <Calendar className="h-4 w-4" />,
+                          action: async () => {
+                            await reportService.downloadSprintTasks(currentTeam._id, selectedProject._id, displayedSprint._id);
+                          }
+                        }] : [])
+                      ]}
+                    />
+                  )}
+
                   {canManageMembers() && (
                     <button
                       onClick={() => setShowMembersModal(true)}

@@ -2,10 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Calendar, Clock, Smile, Activity, ShieldCheck, List, FileText, PieChart, TrendingUp, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { toast } from 'react-toastify';
 import activityService from '../services/activityService';
+import reportService from '../services/reportService';
+import { useTeam } from '../context/TeamContext';
 import DeleteConfirmationModal from '../components/shared/DeleteConfirmationModal';
+import DownloadReportButton from '../components/shared/DownloadReportButton';
 
 const Dashboard = () => {
+  const { currentTeam } = useTeam();
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
 
   // FIXED: Separate state for selected date
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -218,8 +223,8 @@ const Dashboard = () => {
           </div>
         </div>
         
-        <div className="flex gap-2">
-          <button 
+        <div className="flex gap-2 items-center">
+          <button
             onClick={() => {
               const yesterday = new Date(selectedDate);
               yesterday.setDate(yesterday.getDate() - 1);
@@ -229,13 +234,13 @@ const Dashboard = () => {
           >
             <ChevronsLeft className="h-5 w-5" /> Previous
           </button>
-          <button 
+          <button
             onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
             className="px-4 py-2 text-sm font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg"
           >
             Today
           </button>
-          <button 
+          <button
             onClick={() => {
               const tomorrow = new Date(selectedDate);
               tomorrow.setDate(tomorrow.getDate() + 1);
@@ -245,6 +250,92 @@ const Dashboard = () => {
           >
             Next <ChevronsRight className="h-5 w-5" />
           </button>
+
+          {currentTeam && (
+            <div className="ml-2 border-l border-gray-200 pl-2">
+              <DownloadReportButton
+                label="Download"
+                variant="secondary"
+                disabled={downloading}
+                options={[
+                  {
+                    key: 'today',
+                    label: 'Current Day',
+                    description: `Activity for ${new Date(selectedDate).toLocaleDateString()}`,
+                    action: async () => {
+                      setDownloading(true);
+                      try {
+                        await reportService.downloadMyActivity(currentTeam._id, {
+                          startDate: selectedDate,
+                          endDate: selectedDate
+                        });
+                      } finally {
+                        setDownloading(false);
+                      }
+                    }
+                  },
+                  {
+                    key: 'week',
+                    label: 'This Week',
+                    description: 'Activity for the current week',
+                    action: async () => {
+                      setDownloading(true);
+                      try {
+                        const today = new Date();
+                        const startOfWeek = new Date(today);
+                        startOfWeek.setDate(today.getDate() - today.getDay());
+                        const endOfWeek = new Date(startOfWeek);
+                        endOfWeek.setDate(startOfWeek.getDate() + 6);
+                        await reportService.downloadMyActivity(currentTeam._id, {
+                          startDate: startOfWeek.toISOString().split('T')[0],
+                          endDate: endOfWeek.toISOString().split('T')[0]
+                        });
+                      } finally {
+                        setDownloading(false);
+                      }
+                    }
+                  },
+                  {
+                    key: 'month',
+                    label: 'This Month',
+                    description: 'Activity for the current month',
+                    action: async () => {
+                      setDownloading(true);
+                      try {
+                        const today = new Date();
+                        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                        const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                        await reportService.downloadMyActivity(currentTeam._id, {
+                          startDate: startOfMonth.toISOString().split('T')[0],
+                          endDate: endOfMonth.toISOString().split('T')[0]
+                        });
+                      } finally {
+                        setDownloading(false);
+                      }
+                    }
+                  },
+                  {
+                    key: 'year',
+                    label: 'This Year',
+                    description: 'Activity for the current year',
+                    action: async () => {
+                      setDownloading(true);
+                      try {
+                        const today = new Date();
+                        const startOfYear = new Date(today.getFullYear(), 0, 1);
+                        await reportService.downloadMyActivity(currentTeam._id, {
+                          startDate: startOfYear.toISOString().split('T')[0],
+                          endDate: today.toISOString().split('T')[0]
+                        });
+                      } finally {
+                        setDownloading(false);
+                      }
+                    }
+                  }
+                ]}
+              />
+            </div>
+          )}
         </div>
       </div>
 

@@ -25,6 +25,7 @@ import BandwidthReports from './pages/BandwidthReports';
 import CreateBandwidthReport from './pages/CreateBandwidthReport';
 import TeamAnalytics from './components/admin/TeamAnalytics';
 import TeamActivity from './pages/TeamActivity';
+import ResetPassword from './pages/ResetPassword';
 
 const AuthRedirect = () => {
   const { isAuthenticated, loading: authLoading } = useAuth();
@@ -71,6 +72,7 @@ const AppRoutes = () => (
               {/* Public routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/reset-password/:token" element={<ResetPassword />} />
               <Route path="/" element={<AuthRedirect />} />
 
               {/* Team selection */}

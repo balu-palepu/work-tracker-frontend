@@ -42,6 +42,26 @@ const activityService = {
     const response = await api.get('/activities/stats/summary', { params });
     return response.data;
   },
+
+  // Team-level endpoints (for admin/manager)
+
+  // Get team activity history
+  getTeamHistory: async (teamId, params = {}) => {
+    const response = await api.get(`/teams/${teamId}/admin/history`, { params });
+    return response.data;
+  },
+
+  // Get team statistics
+  getTeamStats: async (teamId, params = {}) => {
+    const response = await api.get(`/teams/${teamId}/admin/statistics`, { params });
+    return response.data;
+  },
+
+  // Get member comparison
+  getMemberComparison: async (teamId, params = {}) => {
+    const response = await api.get(`/teams/${teamId}/admin/comparison`, { params });
+    return response.data;
+  },
 };
 
 export default activityService;

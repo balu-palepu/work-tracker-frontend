@@ -62,6 +62,31 @@ const authService = {
     return response.data;
   },
 
+  // Forgot password - request reset link
+  forgotPassword: async (email) => {
+    const response = await api.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  // Verify reset token
+  verifyResetToken: async (token) => {
+    const response = await api.get(`/auth/verify-reset-token/${token}`);
+    return response.data;
+  },
+
+  // Reset password with token
+  resetPassword: async (token, password) => {
+    const response = await api.post(`/auth/reset-password/${token}`, { password });
+    const { token: authToken, user } = response.data;
+
+    if (authToken && user) {
+      localStorage.setItem('token', authToken);
+      localStorage.setItem('user', JSON.stringify(user));
+    }
+
+    return response.data;
+  },
+
   // Get stored user
   getStoredUser: () => {
     try {
