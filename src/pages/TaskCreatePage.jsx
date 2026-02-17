@@ -75,12 +75,8 @@ const TaskCreatePage = () => {
   const [tagInput, setTagInput] = useState('');
 
   const effectiveTeamId = teamId || currentTeam?._id;
-  const navigateToProjectPage = () => {
-    if (effectiveTeamId && projectId) {
-      navigate(`/teams/${effectiveTeamId}/projects/${projectId}`);
-      return;
-    }
-    navigate('/teams');
+  const goBack = () => {
+    navigate(-1);
   };
 
   const selectedSprint = useMemo(() => {
@@ -283,7 +279,7 @@ const TaskCreatePage = () => {
 
       await taskService.createTask(effectiveTeamId, projectId, payload);
       toast.success('Work item created successfully!');
-      navigateToProjectPage();
+      goBack();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Error creating work item');
     } finally {
@@ -304,11 +300,11 @@ const TaskCreatePage = () => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Breadcrumb */}
         <button
-          onClick={navigateToProjectPage}
+          onClick={goBack}
           className="flex items-center text-gray-600 hover:text-gray-900 mb-6"
         >
           <ChevronsLeft className="w-4 h-4 mr-1" />
-          Back to Project
+          Back
         </button>
 
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
@@ -573,7 +569,7 @@ const TaskCreatePage = () => {
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
               <button
                 type="button"
-                onClick={navigateToProjectPage}
+                onClick={goBack}
                 className="px-6 py-2.5 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium transition-colors"
               >
                 Cancel

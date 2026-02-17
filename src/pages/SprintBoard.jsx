@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useSprint } from '../context/SprintContext';
 import { useTeam } from '../context/TeamContext';
-import { CheckCircle, XCircle, Calendar, Target, ChevronsLeft, Play, LayoutGrid, List } from 'lucide-react';
+import { CheckCircle, XCircle, Calendar, Target, ChevronsLeft, Play, LayoutGrid, List, Plus } from 'lucide-react';
 import TrackingBoard from '../components/TrackingBoard';
 import SprintRetrospective from '../components/sprint/SprintRetrospective';
 import SprintPlanningView from '../components/sprint/SprintPlanningView';
@@ -257,7 +257,17 @@ const SprintBoard = () => {
   };
 
   const renderListView = () => (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-4">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs text-gray-500">{sortedTasks.length} items</p>
+        <button
+          onClick={navigateToCreateTask}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white rounded-lg hover:bg-black transition-colors text-sm font-medium"
+        >
+          <Plus className="w-4 h-4" />
+          Add Task
+        </button>
+      </div>
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full">
