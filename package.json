@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
+    "@ckeditor/ckeditor5-react": "^11.0.1",
     "@hello-pangea/dnd": "^18.0.1",
     "axios": "^1.6.2",
+    "ckeditor5": "^47.5.0",
     "date-fns": "^3.0.6",
     "lucide-react": "^0.303.0",
     "react": "^18.2.0",

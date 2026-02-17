@@ -106,6 +106,31 @@ const MultiSelectDropdown = ({
             />
           </div>
 
+          {/* Select All / Deselect All */}
+          {filteredOptions.length > 0 && (
+            <div className="px-3 py-1.5 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const allFilteredValues = filteredOptions.map(o => o[valueField]);
+                  const allSelected = allFilteredValues.every(v => selectedValues.includes(v));
+                  if (allSelected) {
+                    onChange(selectedValues.filter(v => !allFilteredValues.includes(v)));
+                  } else {
+                    const merged = [...new Set([...selectedValues, ...allFilteredValues])];
+                    onChange(merged);
+                  }
+                }}
+                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+              >
+                {filteredOptions.every(o => selectedValues.includes(o[valueField]))
+                  ? `Deselect All (${filteredOptions.length})`
+                  : `Select All (${filteredOptions.length})`}
+              </button>
+              <span className="text-[10px] text-gray-400">{selectedValues.length} selected</span>
+            </div>
+          )}
+
           {/* Options List */}
           <div className="max-h-60 overflow-y-auto">
             {filteredOptions.length === 0 ? (

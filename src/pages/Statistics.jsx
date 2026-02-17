@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { format, subDays } from 'date-fns';
 import { toast } from 'react-toastify';
 import activityService from '../services/activityService';
@@ -113,12 +113,33 @@ const Statistics = () => {
   const currentActivities = activeTab === 'self' ? activities : teamActivities;
 
   // Prepare data for charts
-  const hoursPerDay = currentActivities.map((activity) => ({
-    date: format(new Date(activity.date), 'MMM d'),
-    hours: activity.totalWorkHours,
-    productivity: activity.productivity,
-    name: activity.user?.name || 'You',
-  }));
+  const hoursPerDay = useMemo(() => {
+    if (activeTab === 'team') {
+      const grouped = currentActivities.reduce((acc, activity) => {
+        const dateKey = format(new Date(activity.date), 'MMM d');
+        if (!acc[dateKey]) {
+          acc[dateKey] = { date: dateKey, hoursSum: 0, productivitySum: 0, count: 0 };
+        }
+        acc[dateKey].hoursSum += Number(activity.totalWorkHours || 0);
+        acc[dateKey].productivitySum += Number(activity.productivity || 0);
+        acc[dateKey].count += 1;
+        return acc;
+      }, {});
+
+      return Object.values(grouped).map((item) => ({
+        date: item.date,
+        hours: item.count > 0 ? Number((item.hoursSum / item.count).toFixed(2)) : 0,
+        productivity: item.count > 0 ? Number((item.productivitySum / item.count).toFixed(2)) : 0,
+      }));
+    }
+
+    return currentActivities.map((activity) => ({
+      date: format(new Date(activity.date), 'MMM d'),
+      hours: activity.totalWorkHours,
+      productivity: activity.productivity,
+      name: activity.user?.name || 'You',
+    }));
+  }, [currentActivities, activeTab]);
 
   const taskStatusData = currentStats ? Object.entries(currentStats.tasksByStatus || {}).map(([status, count]) => ({
     name: status,

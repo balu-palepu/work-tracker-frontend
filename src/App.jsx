@@ -26,6 +26,11 @@ import CreateBandwidthReport from './pages/CreateBandwidthReport';
 import TeamAnalytics from './components/admin/TeamAnalytics';
 import TeamActivity from './pages/TeamActivity';
 import ResetPassword from './pages/ResetPassword';
+import TaskCreatePage from './pages/TaskCreatePage';
+import TaskDetailPage from './pages/TaskDetailPage';
+import TaskCompletionPage from './pages/TaskCompletionPage';
+import Newsletters from './pages/Newsletters';
+import NewsletterDetail from './pages/NewsletterDetail';
 
 const AuthRedirect = () => {
   const { isAuthenticated, loading: authLoading } = useAuth();
@@ -207,10 +212,48 @@ const AppRoutes = () => (
               path="/teams/:teamId/projects/:projectId/sprints/:sprintId"
               element={
                 <PrivateRoute>
-                  <SprintBoard />
+                  <>
+                    <Navbar />
+                    <SprintBoard />
+                  </>
+                </PrivateRoute>
+              }
+            />
+              {/* Task routes */}
+              <Route
+                path="/teams/:teamId/projects/:projectId/tasks/new"
+                element={
+                  <PrivateRoute>
+                    <>
+                      <Navbar />
+                      <TaskCreatePage />
+                    </>
                   </PrivateRoute>
                 }
               />
+              <Route
+                path="/teams/:teamId/projects/:projectId/tasks/:taskId/complete"
+                element={
+                  <PrivateRoute>
+                    <>
+                      <Navbar />
+                      <TaskCompletionPage />
+                    </>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/teams/:teamId/projects/:projectId/tasks/:taskId"
+                element={
+                  <PrivateRoute>
+                    <>
+                      <Navbar />
+                      <TaskDetailPage />
+                    </>
+                  </PrivateRoute>
+                }
+              />
+
               <Route
                 path="/teams/:teamId/projects/:projectId/backlog"
                 element={
@@ -281,6 +324,29 @@ const AppRoutes = () => (
                     <>
                       <Navbar />
                       <CreateBandwidthReport />
+                    </>
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/teams/:teamId/newsletters"
+                element={
+                  <PrivateRoute>
+                    <>
+                      <Navbar />
+                      <Newsletters />
+                    </>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/teams/:teamId/newsletters/:newsletterId"
+                element={
+                  <PrivateRoute>
+                    <>
+                      <Navbar />
+                      <NewsletterDetail />
                     </>
                   </PrivateRoute>
                 }

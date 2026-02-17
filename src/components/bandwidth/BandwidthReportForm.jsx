@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { useTeam } from '../../context/TeamContext';
 import projectService from '../../services/projectService';
+import BaseModal from '../shared/BaseModal';
 
 const BandwidthReportForm = ({
   report = null,
@@ -166,189 +167,181 @@ const BandwidthReportForm = ({
       setErrors(prev => ({ ...prev, allocations: '' }));
     }
   };
-  
+
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b border-gray-200 sticky top-0 bg-white">
-          <h2 className="text-2xl font-bold text-gray-900">
-            {report ? 'Edit' : 'Create'} Bandwidth Report
-          </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <X className="w-6 h-6" />
-          </button>
-        </div>
+    <BaseModal
+      isOpen={true}
+      onClose={onClose}
+      title={`${report ? 'Edit' : 'Create'} Bandwidth Report`}
+      size="xl"
+    >
+      <form onSubmit={handleSubmit} className="p-6">
+        <div className="space-y-6">
+          {/* Period Selection */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Month *
+              </label>
+              <select
+                name="month"
+                value={formData.month}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={!!report}
+              >
+                {monthNames.map((month, index) => (
+                  <option key={index + 1} value={index + 1}>{month}</option>
+                ))}
+              </select>
+            </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6">
-          <div className="space-y-6">
-            {/* Period Selection */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Month *
-                </label>
-                <select
-                  name="month"
-                  value={formData.month}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={!!report}
-                >
-                  {monthNames.map((month, index) => (
-                    <option key={index + 1} value={index + 1}>{month}</option>
-                  ))}
-                </select>
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Year *
+              </label>
+              <input
+                type="number"
+                name="year"
+                value={formData.year}
+                onChange={handleChange}
+                min="2020"
+                max="2030"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={!!report}
+              />
+            </div>
+          </div>
+          {errors.period && (
+            <p className="text-sm text-red-600">{errors.period}</p>
+          )}
 
-              <div>
+          {/* Bandwidth Availability */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Do you have any bandwidth this month?
+            </label>
+            <div className="flex items-center gap-4">
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="radio"
+                  name="hasBandwidth"
+                  value="yes"
+                  checked={formData.hasBandwidth === true}
+                  onChange={() => setFormData(prev => ({
+                    ...prev,
+                    hasBandwidth: true,
+                    availablePercentage: prev.availablePercentage > 0 ? prev.availablePercentage : 100
+                  }))}
+                  className="text-blue-600 focus:ring-blue-500"
+                />
+                Yes
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="radio"
+                  name="hasBandwidth"
+                  value="no"
+                  checked={formData.hasBandwidth === false}
+                  onChange={() => setFormData(prev => ({
+                    ...prev,
+                    hasBandwidth: false,
+                    availablePercentage: 0
+                  }))}
+                  className="text-blue-600 focus:ring-blue-500"
+                />
+                No
+              </label>
+            </div>
+            {formData.hasBandwidth && (
+              <div className="mt-4 max-w-xs">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Year *
+                  Available bandwidth (%) *
                 </label>
                 <input
                   type="number"
-                  name="year"
-                  value={formData.year}
+                  name="availablePercentage"
+                  min="1"
+                  max="100"
+                  value={formData.availablePercentage}
                   onChange={handleChange}
-                  min="2020"
-                  max="2030"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={!!report}
                 />
+                {errors.availablePercentage && (
+                  <p className="mt-1 text-sm text-red-600">{errors.availablePercentage}</p>
+                )}
               </div>
-            </div>
-            {errors.period && (
-              <p className="text-sm text-red-600">{errors.period}</p>
             )}
+          </div>
 
-            {/* Bandwidth Availability */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Do you have any bandwidth this month?
+          {/* Project Allocations */}
+          <div>
+            <div className="flex justify-between items-center mb-3">
+              <label className="block text-sm font-medium text-gray-700">
+                Project Allocations
               </label>
-              <div className="flex items-center gap-4">
-                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="radio"
-                    name="hasBandwidth"
-                    value="yes"
-                    checked={formData.hasBandwidth === true}
-                    onChange={() => setFormData(prev => ({
-                      ...prev,
-                      hasBandwidth: true,
-                      availablePercentage: prev.availablePercentage > 0 ? prev.availablePercentage : 100
-                    }))}
-                    className="text-blue-600 focus:ring-blue-500"
-                  />
-                  Yes
-                </label>
-                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="radio"
-                    name="hasBandwidth"
-                    value="no"
-                    checked={formData.hasBandwidth === false}
-                    onChange={() => setFormData(prev => ({
-                      ...prev,
-                      hasBandwidth: false,
-                      availablePercentage: 0
-                    }))}
-                    className="text-blue-600 focus:ring-blue-500"
-                  />
-                  No
-                </label>
-              </div>
-              {formData.hasBandwidth && (
-                <div className="mt-4 max-w-xs">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Available bandwidth (%) *
-                  </label>
-                  <input
-                    type="number"
-                    name="availablePercentage"
-                    min="1"
-                    max="100"
-                    value={formData.availablePercentage}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  {errors.availablePercentage && (
-                    <p className="mt-1 text-sm text-red-600">{errors.availablePercentage}</p>
-                  )}
-                </div>
-              )}
+              <button
+                type="button"
+                onClick={addAllocation}
+                className="flex items-center px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Add
+              </button>
             </div>
 
-            {/* Project Allocations */}
-            <div>
-              <div className="flex justify-between items-center mb-3">
-                <label className="block text-sm font-medium text-gray-700">
-                  Project Allocations
-                </label>
+            {formData.allocations.map((allocation, index) => (
+              <div key={index} className="flex gap-3 mb-3">
+                <select
+                  value={allocation.project}
+                  onChange={(e) => updateAllocation(index, 'project', e.target.value)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select Project</option>
+                  {projects.map(project => (
+                    <option key={project._id} value={project._id}>{project.name}</option>
+                  ))}
+                </select>
+
                 <button
                   type="button"
-                  onClick={addAllocation}
-                  className="flex items-center px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  onClick={() => removeAllocation(index)}
+                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                 >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add
+                  <Trash2 className="w-5 h-5" />
                 </button>
               </div>
+            ))}
 
-              {formData.allocations.map((allocation, index) => (
-                <div key={index} className="flex gap-3 mb-3">
-                  <select
-                    value={allocation.project}
-                    onChange={(e) => updateAllocation(index, 'project', e.target.value)}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Select Project</option>
-                    {projects.map(project => (
-                      <option key={project._id} value={project._id}>{project.name}</option>
-                    ))}
-                  </select>
-
-                  <button
-                    type="button"
-                    onClick={() => removeAllocation(index)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                </div>
-              ))}
-
-              {errors.allocations && (
-                <p className="mt-1 text-sm text-red-600">{errors.allocations}</p>
-              )}
-
-            </div>
+            {errors.allocations && (
+              <p className="mt-1 text-sm text-red-600">{errors.allocations}</p>
+            )}
 
           </div>
 
-          {/* Actions */}
-          <div className="flex justify-end space-x-3 mt-8 pt-6 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
-              {report ? 'Update Report' : 'Create Report'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-end space-x-3 mt-8 pt-6 border-t border-gray-200">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
+            {report ? 'Update Report' : 'Create Report'}
+          </button>
+        </div>
+      </form>
+    </BaseModal>
   );
 };
 

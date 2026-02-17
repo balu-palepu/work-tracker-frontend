@@ -86,6 +86,18 @@ const projectService = {
   getProjectsByTeamLead: async (teamId, userId) => {
     const response = await api.get(`/teams/${teamId}/projects/team-lead/${userId}`);
     return response.data;
+  },
+
+  // Update project workflow
+  updateWorkflow: async (teamId, projectId, workflowData) => {
+    const response = await api.put(`/teams/${teamId}/projects/${projectId}/workflow`, workflowData);
+    return response.data;
+  },
+
+  // Get project analytics
+  getProjectAnalytics: async (teamId, projectId) => {
+    const response = await api.get(`/teams/${teamId}/projects/${projectId}/analytics`);
+    return response.data;
   }
 };
 

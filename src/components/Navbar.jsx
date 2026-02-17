@@ -65,7 +65,8 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-white shadow-md border-b border-gray-200">
+    <>
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-white shadow-md border-b border-gray-200">
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
@@ -83,9 +84,19 @@ const Navbar = () => {
             <div className="hidden md:flex ml-10 space-x-4">
               {/* SMEs only see Projects */}
               {isSME() ? (
-                <Link to="/projects" className={getLinkClasses('/projects')}>
-                  Projects
-                </Link>
+                <>
+                  <Link to="/projects" className={getLinkClasses('/projects')}>
+                    Projects
+                  </Link>
+                  {currentTeam && (
+                    <Link
+                      to={`/teams/${currentTeam._id}/newsletters`}
+                      className={getLinkClasses(`/teams/${currentTeam._id}/newsletters`)}
+                    >
+                      Newsletters
+                    </Link>
+                  )}
+                </>
               ) : (
                 <>
                   {/* Regular users and admins see all navigation items */}
@@ -98,6 +109,14 @@ const Navbar = () => {
                   <Link to="/projects" className={getLinkClasses('/projects')}>
                     Projects
                   </Link>
+                  {currentTeam && (
+                    <Link
+                      to={`/teams/${currentTeam._id}/newsletters`}
+                      className={getLinkClasses(`/teams/${currentTeam._id}/newsletters`)}
+                    >
+                      Newsletters
+                    </Link>
+                  )}
                   <Link
                     to="/history"
                     className={getLinkClasses('/history')}
@@ -250,6 +269,8 @@ const Navbar = () => {
         </div>
       </div>
     </nav>
+    <div className="h-16" />
+    </>
   );
 };
 

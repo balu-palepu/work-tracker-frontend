@@ -10,17 +10,23 @@ import projectService from '../services/projectService';
 import taskService from '../services/taskService';
 import teamService from '../services/teamService';
 import projectMemberService from '../services/projectMemberService';
-import sprintService from '../services/sprintService';
 import reportService from '../services/reportService';
 import DeleteConfirmationModal from '../components/shared/DeleteConfirmationModal';
 import MultiSelectDropdown from '../components/shared/MultiSelectDropdown';
 import DownloadReportButton from '../components/shared/DownloadReportButton';
-import { Folder, User, UserPlus, X, Users, Trash2, Plus, Calendar, ClipboardList } from 'lucide-react';
+import HierarchyView from '../components/project/HierarchyView';
+import ListView from '../components/project/ListView';
+import TimelineView from '../components/project/TimelineView';
+import FilterBar, { applyFilters } from '../components/project/FilterBar';
+import ProjectAnalytics from '../components/project/ProjectAnalytics';
+import SprintSelectorBar from '../components/project/SprintSelectorBar';
+import SprintCalendarView from '../components/project/SprintCalendarView';
+import { Folder, User, X, Users, Trash2, Plus, Calendar, CalendarDays, ClipboardList, LayoutGrid, List, GitBranch, Clock3, Sparkles } from 'lucide-react';
 
 const Projects = () => {
   const { currentTeam, isAdmin, selectTeam, loading: teamLoading } = useTeam();
   const { user, isSystemAdmin, loading: authLoading } = useAuth();
-  const { currentSprint, sprints, backlog, loadSprints, loadBacklog, clearSprintData } = useSprint();
+  const { sprints, backlog, loadSprints, loadBacklog, clearSprintData } = useSprint();
   const navigate = useNavigate();
   const { teamId: teamIdParam, projectId: projectIdParam } = useParams();
   const [searchParams] = useSearchParams();
@@ -40,11 +46,11 @@ const Projects = () => {
   const [memberActionLoading, setMemberActionLoading] = useState(false);
   const [membersToAdd, setMembersToAdd] = useState([]);
   const [taskFilter, setTaskFilter] = useState('all');
+  const [workTypeFilter, setWorkTypeFilter] = useState('all');
+  const [metricsHighlight, setMetricsHighlight] = useState('total');
   const [sprintLoading, setSprintLoading] = useState(false);
   const [backlogLoading, setBacklogLoading] = useState(false);
-  const [sprintIndex, setSprintIndex] = useState(0);
-  const [sprintTasks, setSprintTasks] = useState([]);
-  const [sprintTasksLoading, setSprintTasksLoading] = useState(false);
+  const [selectedSprintId, setSelectedSprintId] = useState('');
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, task: null });
   const [isDeleting, setIsDeleting] = useState(false);
   // Initialize teamSelecting to true if we have a teamIdParam to prevent premature redirects
@@ -83,11 +89,21 @@ const Projects = () => {
 
   useEffect(() => {
     if (selectedProject && currentTeam) {
+      clearSprintData();
       fetchTasks(selectedProject._id);
       fetchProjectAssignees(selectedProject._id);
       loadSprintData(selectedProject._id);
     }
-  }, [selectedProject, currentTeam]);
+  }, [selectedProject, currentTeam, clearSprintData]);
+
+  useEffect(() => {
+    // Prevent stale filters from hiding items after project change
+    setTaskFilter('all');
+    setWorkTypeFilter('all');
+    setActiveFilters([]);
+    setSelectedSprintId('');
+    setMetricsHighlight('total');
+  }, [selectedProject?._id]);
 
   useEffect(() => {
     if (showMembersModal && selectedProject && currentTeam) {
@@ -103,6 +119,13 @@ const Projects = () => {
 
 
   const [roleFilter, setRoleFilter] = useState('all');
+  const [viewMode, setViewMode] = useState('board');
+  const [boardSubView, setBoardSubView] = useState(() => localStorage.getItem('boardSubView') || 'board');
+  const [activeFilters, setActiveFilters] = useState([]);
+  const projectPreferenceKey = useMemo(() => {
+    if (!currentTeam?._id || !user?._id) return null;
+    return `last_selected_project_${user._id}_${currentTeam._id}`;
+  }, [currentTeam, user]);
 
   const filteredProjects = useMemo(() => {
     if (roleFilter === 'all') return projects;
@@ -128,7 +151,45 @@ const Projects = () => {
     });
   }, [projects, roleFilter, user]);
 
+  const workflowStatuses = useMemo(() => {
+    const statuses =
+      selectedProject?.workflowStatuses ||
+      selectedProject?.workflow?.workflowStatuses ||
+      selectedProject?.workflow?.statuses;
+
+    if (Array.isArray(statuses) && statuses.length > 0) {
+      return [...statuses]
+        .map((s) => {
+          if (s.id === 'new') return { ...s, id: 'todo', label: 'To Do' };
+          if (s.id === 'active') return { ...s, id: 'inprogress', label: 'In Progress' };
+          if (s.id === 'resolved' || s.id === 'closed') {
+            return { ...s, id: 'resolved', label: 'Completed/Closed' };
+          }
+          return s;
+        })
+        .filter((s) => s.id !== 'closed')
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    }
+
+    return [
+      { id: 'todo', label: 'To Do', category: 'todo', color: '#6B7280', order: 0 },
+      { id: 'inprogress', label: 'In Progress', category: 'inprogress', color: '#3B82F6', order: 1 },
+      { id: 'resolved', label: 'Completed/Closed', category: 'completed', color: '#10B981', order: 2 },
+    ];
+  }, [selectedProject]);
+
+  const workItemTypes = useMemo(() => {
+    if (Array.isArray(selectedProject?.workItemTypes) && selectedProject.workItemTypes.length > 0) {
+      return selectedProject.workItemTypes;
+    }
+    return ['epic', 'feature', 'story', 'task', 'bug', 'subtask'];
+  }, [selectedProject]);
+
   useEffect(() => {
+    const persistedProjectId = projectPreferenceKey
+      ? localStorage.getItem(projectPreferenceKey)
+      : null;
+
     if (projectIdParam && projects.length > 0) {
       const match = projects.find((project) => project._id === projectIdParam);
       if (match && selectedProject?._id !== match._id) {
@@ -137,15 +198,34 @@ const Projects = () => {
       return;
     }
 
+    if (!projectIdParam && persistedProjectId && filteredProjects.length > 0) {
+      const persistedProject = filteredProjects.find((project) => project._id === persistedProjectId);
+      if (persistedProject && selectedProject?._id !== persistedProject._id) {
+        setSelectedProject(persistedProject);
+        return;
+      }
+    }
+
     if (!selectedProject && filteredProjects.length > 0) {
-      setSelectedProject(filteredProjects[0]);
+      const persistedProject = persistedProjectId
+        ? filteredProjects.find((project) => project._id === persistedProjectId)
+        : null;
+      setSelectedProject(persistedProject || filteredProjects[0]);
       return;
     }
 
     if (selectedProject && !filteredProjects.some(p => p._id === selectedProject._id)) {
-      setSelectedProject(filteredProjects[0] || null);
+      const persistedProject = persistedProjectId
+        ? filteredProjects.find((project) => project._id === persistedProjectId)
+        : null;
+      setSelectedProject(persistedProject || filteredProjects[0] || null);
     }
-  }, [filteredProjects, selectedProject, projectIdParam, projects]);
+  }, [filteredProjects, selectedProject, projectIdParam, projects, projectPreferenceKey]);
+
+  useEffect(() => {
+    if (!projectPreferenceKey || !selectedProject?._id) return;
+    localStorage.setItem(projectPreferenceKey, selectedProject._id);
+  }, [selectedProject, projectPreferenceKey]);
 
   const fetchProjects = async () => {
     if (!currentTeam) return;
@@ -161,11 +241,6 @@ const Projects = () => {
           setSelectedProject(match);
           return;
         }
-      }
-
-      // Select first project by default
-      if (response.data.length > 0 && !selectedProject) {
-        setSelectedProject(response.data[0]);
       }
     } catch (error) {
       toast.error('Error fetching projects');
@@ -291,6 +366,13 @@ const Projects = () => {
       await projectService.deleteProject(currentTeam._id, projectId);
       setProjects(projects.filter(p => p._id !== projectId));
 
+      if (projectPreferenceKey) {
+        const persistedProjectId = localStorage.getItem(projectPreferenceKey);
+        if (persistedProjectId === projectId) {
+          localStorage.removeItem(projectPreferenceKey);
+        }
+      }
+
       if (selectedProject?._id === projectId) {
         setSelectedProject(projects.find(p => p._id !== projectId) || null);
       }
@@ -299,6 +381,14 @@ const Projects = () => {
     } catch (error) {
       toast.error(error.response?.data?.message || 'Error deleting project');
       throw error;
+    }
+  };
+
+  const handleProjectSelect = (project) => {
+    if (!project) return;
+    setSelectedProject(project);
+    if (currentTeam?._id) {
+      navigate(`/teams/${currentTeam._id}/projects/${project._id}`);
     }
   };
 
@@ -354,29 +444,33 @@ const Projects = () => {
     }
   };
 
-  const handleTaskStatusChange = async (taskId, newStatus, newPosition, sourceStatus) => {
+  const handleTaskStatusChange = async (taskId, newStatus, newPosition, sourceStatus, sourceIndex, completionData = {}) => {
     if (!selectedProject || !currentTeam) return;
 
     try {
-      // Optimistic UI update to avoid flicker
+      const boardStatuses = workflowStatuses.map((s) => s.id);
+      // Optimistic update without dropping tasks from unmatched columns
       setTasks((prevTasks) => {
         const updatedTasks = prevTasks.map((task) =>
-          task._id === taskId ? { ...task, status: newStatus, position: newPosition } : task
+          task._id === taskId ? { ...task, status: newStatus, position: newPosition ?? 0 } : task
         );
 
         const normalizeColumn = (status) => {
           const columnTasks = updatedTasks
             .filter((task) => task.status === status && task._id !== taskId)
             .sort((a, b) => a.position - b.position);
-          if (status === newStatus) {
-            columnTasks.splice(newPosition, 0, updatedTasks.find((task) => task._id === taskId));
+          if (status === newStatus && typeof newPosition === 'number') {
+            const movedTask = updatedTasks.find((task) => task._id === taskId);
+            if (movedTask) {
+              columnTasks.splice(newPosition, 0, movedTask);
+            }
           }
           return columnTasks.map((task, index) => ({ ...task, position: index }));
         };
 
-        const statuses = ['todo', 'inprogress', 'completed'];
-        const normalized = statuses.flatMap((status) => normalizeColumn(status));
-        return normalized;
+        const normalizedByColumn = boardStatuses.flatMap((status) => normalizeColumn(status));
+        const normalizedMap = new Map(normalizedByColumn.map((task) => [task._id, task]));
+        return updatedTasks.map((task) => normalizedMap.get(task._id) || task);
       });
 
       const response = await taskService.updateTaskStatus(
@@ -384,10 +478,11 @@ const Projects = () => {
         selectedProject._id,
         taskId,
         newStatus,
-        newPosition
+        newPosition,
+        completionData
       );
 
-      setTasks(tasks.map(t => t._id === taskId ? response.data : t));
+      setTasks((prevTasks) => prevTasks.map((t) => (t._id === taskId ? response.data : t)));
     } catch (error) {
       toast.error('Error updating task status');
       console.error(error);
@@ -396,9 +491,95 @@ const Projects = () => {
     }
   };
 
+  const handleInlineStatusChange = async (taskId, newStatus, completionData = {}) => {
+    const currentTask = tasks.find((task) => task._id === taskId);
+    if (!currentTask || !selectedProject || !currentTeam) return;
+
+    const targetWorkflow = workflowStatuses.find((s) => s.id === newStatus);
+    const isCompletedTarget =
+      targetWorkflow?.category === 'completed' ||
+      newStatus === 'completed' ||
+      newStatus === 'resolved' ||
+      newStatus === 'closed';
+
+    if (isCompletedTarget && !completionData?.completionReason) {
+      // Navigate to completion page instead of opening modal
+      navigate(`/teams/${currentTeam._id}/projects/${selectedProject._id}/tasks/${taskId}/complete?targetStatus=${newStatus}`);
+      return;
+    }
+
+    try {
+      const response = await taskService.updateTaskStatus(
+        currentTeam._id,
+        selectedProject._id,
+        taskId,
+        newStatus,
+        currentTask.position ?? 0,
+        completionData
+      );
+      setTasks((prevTasks) =>
+        prevTasks.map((task) => (task._id === taskId ? response.data : task))
+      );
+      toast.success('Task status updated successfully');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Error updating task status');
+    }
+  };
+
+  // Navigation callbacks (replace modal-based create/edit/view)
+  const navigateToCreateTask = () => {
+    if (!selectedProject || !currentTeam) return;
+    const sprintQuery = selectedSprintId === 'backlog' ? 'none'
+      : (selectedSprintId && selectedSprintId !== 'all' ? selectedSprintId : '');
+    const query = sprintQuery ? `?sprint=${sprintQuery}` : '';
+    navigate(`/teams/${currentTeam._id}/projects/${selectedProject._id}/tasks/new${query}`);
+  };
+
+  const navigateToTask = (taskId) => {
+    if (!selectedProject || !currentTeam) return;
+    navigate(`/teams/${currentTeam._id}/projects/${selectedProject._id}/tasks/${taskId}`);
+  };
+
+  const navigateToCompleteTask = (taskId, targetStatus) => {
+    if (!selectedProject || !currentTeam) return;
+    navigate(`/teams/${currentTeam._id}/projects/${selectedProject._id}/tasks/${taskId}/complete${targetStatus ? `?targetStatus=${targetStatus}` : ''}`);
+  };
+
+  const advancedFilteredTasks = useMemo(() => {
+    return applyFilters(tasks, activeFilters);
+  }, [tasks, activeFilters]);
+
+  const getTaskSprintId = (task) => {
+    if (!task?.sprint) return null;
+    if (typeof task.sprint === 'string') return task.sprint;
+    return task.sprint?._id || null;
+  };
+
+  useEffect(() => {
+    if (!sprints.length) {
+      setSelectedSprintId('all');
+      return;
+    }
+    // If a specific sprint is already selected and still exists, keep it
+    if (selectedSprintId && selectedSprintId !== '' && selectedSprintId !== 'all' && (selectedSprintId === 'backlog' || sprints.some((s) => s._id === selectedSprintId))) return;
+    // Default to active sprint instead of 'all'
+    const active = sprints.find((s) => s.status === 'active');
+    setSelectedSprintId(active?._id || sprints[0]?._id || 'all');
+  }, [sprints]);
+
+  const sprintScopedTasks = useMemo(() => {
+    if (!selectedSprintId || selectedSprintId === 'all') return advancedFilteredTasks;
+    if (selectedSprintId === 'backlog') {
+      return advancedFilteredTasks.filter((task) => !getTaskSprintId(task));
+    }
+    return advancedFilteredTasks.filter((task) => getTaskSprintId(task) === selectedSprintId);
+  }, [advancedFilteredTasks, selectedSprintId]);
+
   const filteredTasks = useMemo(() => {
+    let nextTasks = sprintScopedTasks;
+
     if (taskFilter === 'assigned') {
-      return tasks.filter(task => {
+      nextTasks = nextTasks.filter(task => {
         const assigned = task.assignedTo;
         const assignedId = typeof assigned === 'string'
           ? assigned
@@ -412,68 +593,22 @@ const Projects = () => {
       });
     }
     if (taskFilter === 'completed') {
-      return tasks.filter(task => task.status === 'completed' || task.status === 'done');
-    }
-    return tasks;
-  }, [tasks, taskFilter, user]);
-
-  const activeSprint = currentSprint || sprints.find(s => s.status === 'active') || null;
-
-  const sprintTimeline = useMemo(() => {
-    return [...sprints].sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
-  }, [sprints]);
-
-  useEffect(() => {
-    if (!sprintTimeline.length) {
-      setSprintIndex(0);
-      return;
-    }
-    const activeIndex = activeSprint
-      ? sprintTimeline.findIndex((s) => s._id === activeSprint._id)
-      : 0;
-    setSprintIndex(activeIndex >= 0 ? activeIndex : 0);
-  }, [sprintTimeline, activeSprint]);
-
-  const displayedSprint = sprintTimeline[sprintIndex] || activeSprint;
-
-  useEffect(() => {
-    if (!displayedSprint || !currentTeam || !selectedProject) {
-      setSprintTasks([]);
-      return;
+      nextTasks = nextTasks.filter((task) => {
+        const normalizedStatus = String(task?.status || '').toLowerCase();
+        return ['resolved', 'completed', 'closed', 'done'].includes(normalizedStatus);
+      });
     }
 
-    const loadDisplayedSprintTasks = async () => {
-      try {
-        setSprintTasksLoading(true);
-        const response = await sprintService.getSprint(
-          currentTeam._id,
-          selectedProject._id,
-          displayedSprint._id
-        );
-        const tasksForSprint = response?.data?.tasks || [];
-        setSprintTasks(Array.isArray(tasksForSprint) ? tasksForSprint : []);
-      } catch (error) {
-        console.error('Error loading sprint tasks:', error);
-        setSprintTasks([]);
-      } finally {
-        setSprintTasksLoading(false);
-      }
-    };
+    if (workTypeFilter !== 'all') {
+      nextTasks = nextTasks.filter((task) => (task.workItemType || 'task') === workTypeFilter);
+    }
 
-    loadDisplayedSprintTasks();
-  }, [displayedSprint, currentTeam, selectedProject]);
+    return nextTasks;
+  }, [sprintScopedTasks, taskFilter, workTypeFilter, user]);
 
   const formatDate = (date) => {
     if (!date) return 'N/A';
     return new Date(date).toLocaleDateString();
-  };
-
-  const getDefaultSprintWindow = () => {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 13);
-    return { start, end };
   };
 
   const handleAssignTeamLead = async (teamLeadId) => {
@@ -536,6 +671,126 @@ const Projects = () => {
     const isProjectManager = selectedProject?.userRole === 'owner' || selectedProject?.userRole === 'manager';
     return isSystemAdmin?.() || isTeamLead || isProjectManager;
   };
+
+  const viewOptions = [
+    { id: 'board', label: 'Board', icon: LayoutGrid },
+    { id: 'hierarchy', label: 'Hierarchy', icon: GitBranch },
+    { id: 'timeline', label: 'Roadmap', icon: Clock3 },
+    // { id: 'calendar', label: 'Calendar', icon: CalendarDays },
+  ];
+
+  const handleBoardSubViewChange = (subView) => {
+    setBoardSubView(subView);
+    localStorage.setItem('boardSubView', subView);
+  };
+
+  const workTypeSummary = useMemo(() => {
+    const counts = {};
+    filteredTasks.forEach((task) => {
+      const key = task.workItemType || 'task';
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    return counts;
+  }, [filteredTasks]);
+
+  const projectCode = useMemo(() => {
+    const raw = selectedProject?.name || 'PRJ';
+    const words = String(raw).trim().split(/\s+/).filter(Boolean);
+    let prefix = '';
+    if (words.length > 1) {
+      prefix = words.map((w) => w[0]).join('');
+    } else {
+      prefix = words[0]?.slice(0, 3) || 'PRJ';
+    }
+    return prefix.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6) || 'PRJ';
+  }, [selectedProject?.name]);
+
+  const taskCodeById = useMemo(() => {
+    const sorted = [...tasks].sort((a, b) => {
+      const aTime = new Date(a?.createdAt || 0).getTime();
+      const bTime = new Date(b?.createdAt || 0).getTime();
+      if (aTime !== bTime) return aTime - bTime;
+      return String(a?._id || '').localeCompare(String(b?._id || ''));
+    });
+
+    const map = {};
+    sorted.forEach((task, index) => {
+      map[task._id] = `${projectCode}-${index + 1}`;
+    });
+    return map;
+  }, [tasks, projectCode]);
+
+  const filteredTasksWithCode = useMemo(() => {
+    return filteredTasks.map((task) => ({
+      ...task,
+      displayId: taskCodeById[task._id] || `${projectCode}-0`,
+    }));
+  }, [filteredTasks, taskCodeById, projectCode]);
+
+  const isTaskCompleted = (task) => {
+    const normalizedStatus = String(task?.status || '').toLowerCase();
+    return ['resolved', 'completed', 'closed', 'done'].includes(normalizedStatus);
+  };
+
+  const projectMetrics = useMemo(() => {
+    const activeSprint = sprints.find((s) => s.status === 'active');
+    const activeSprintTasks = activeSprint
+      ? tasks.filter((task) => getTaskSprintId(task) === activeSprint._id)
+      : [];
+
+    const total = activeSprintTasks.length;
+    const completed = activeSprintTasks.filter(isTaskCompleted).length;
+    const inProgress = activeSprintTasks.filter((task) => {
+      const normalizedStatus = String(task?.status || '').toLowerCase();
+      return ['inprogress', 'active'].includes(normalizedStatus);
+    }).length;
+    const backlogCount = tasks.filter((task) => !getTaskSprintId(task)).length;
+
+    return {
+      total,
+      completed,
+      inProgress,
+      backlogCount,
+      completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
+    };
+  }, [tasks, sprints]);
+
+  const projectHealth = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const overdue = filteredTasks.filter((task) => {
+      if (isTaskCompleted(task)) return false;
+      if (!task?.dueDate) return false;
+      const due = new Date(task.dueDate);
+      due.setHours(0, 0, 0, 0);
+      return due < today;
+    }).length;
+    const unassigned = filteredTasks.filter((task) => {
+      const assigned = task?.assignedTo;
+      if (!assigned) return true;
+      if (typeof assigned === 'string') return !assigned;
+      return !(assigned?._id || assigned?.id);
+    }).length;
+    const blocked = filteredTasks.filter((task) => {
+      const normalizedStatus = String(task?.status || '').toLowerCase();
+      return normalizedStatus === 'blocked';
+    }).length;
+    return { overdue, unassigned, blocked };
+  }, [filteredTasks]);
+
+
+  const currentTeamRole = useMemo(() => {
+    const membership = teamMembers.find((member) => member?.user?._id === user?._id);
+    return String(membership?.role || '').toLowerCase();
+  }, [teamMembers, user]);
+
+  const canCreateOrPlanProjects = useMemo(() => {
+    const projectRole = String(selectedProject?.userRole || '').toLowerCase();
+    if (isSystemAdmin?.() || isAdmin?.()) return true;
+    if (['owner', 'manager', 'sme'].includes(projectRole)) return true;
+    if (['admin', 'manager', 'sme'].includes(currentTeamRole)) return true;
+    return false;
+  }, [selectedProject, currentTeamRole, isSystemAdmin, isAdmin]);
 
   const handleAddProjectMember = async () => {
     if (!selectedProject || !currentTeam || membersToAdd.length === 0) return;
@@ -606,7 +861,7 @@ const Projects = () => {
       <ProjectSidebar
         projects={filteredProjects}
         selectedProject={selectedProject}
-        onProjectSelect={setSelectedProject}
+        onProjectSelect={handleProjectSelect}
         onProjectCreate={handleProjectCreate}
         onProjectUpdate={handleProjectUpdate}
         onProjectDelete={handleProjectDelete}
@@ -614,6 +869,7 @@ const Projects = () => {
         isAdmin={isAdmin()}
         roleFilter={roleFilter}
         onRoleFilterChange={setRoleFilter}
+        canCreateProject={canCreateOrPlanProjects}
       />
 
       {/* Main Content */}
@@ -621,12 +877,12 @@ const Projects = () => {
         {selectedProject ? (
           <>
             {/* Project Header */}
-            <div className="bg-white border-b border-gray-200 px-8 py-6">
+            <div className="text-black border-b border-slate-800 px-8 py-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div
-                    className="w-10 h-10 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: selectedProject.color + '20' }}
+                    className="w-10 h-10 rounded-xl flex items-center justify-center border border-white/10"
+                    style={{ backgroundColor: selectedProject.color + '30' }}
                   >
                     <Folder
                       className="w-6 h-6"
@@ -634,22 +890,26 @@ const Projects = () => {
                     />
                   </div>
                   <div>
-                    <h1 className="text-2xl font-bold text-gray-900">
+                    <h1 className="text-2xl font-bold text-black">
                       {selectedProject.name}
                     </h1>
                     {selectedProject.description && (
-                      <p className="text-sm text-gray-600 mt-1">
+                      <p className="text-sm mt-1">
                         {selectedProject.description}
                       </p>
                     )}
-                    {selectedProject.teamLead && (
-                      <div className="flex items-center gap-2 mt-2">
-                        <User className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm text-gray-600">
-                          Team Lead: <span className="font-medium">{selectedProject.teamLead.name}</span>
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      {selectedProject.teamLead && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-white/10 text-black border border-white/10">
+                          <User className="h-3 w-3" />
+                          Lead: {selectedProject.teamLead.name}
                         </span>
-                      </div>
-                    )}
+                      )}
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-blue-500/20 text-blue-700 border border-blue-300/20">
+                        <Sparkles className="h-3 w-3" />
+                        {String(selectedProject.userRole || currentTeamRole || 'member').toUpperCase()}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -686,15 +946,18 @@ const Projects = () => {
                             await reportService.downloadProjectTasks(currentTeam._id, selectedProject._id, true);
                           }
                         },
-                        ...(displayedSprint ? [{
-                          key: 'current-sprint',
-                          label: `Sprint: ${displayedSprint.name}`,
-                          description: 'Tasks in the selected sprint',
-                          icon: <Calendar className="h-4 w-4" />,
-                          action: async () => {
-                            await reportService.downloadSprintTasks(currentTeam._id, selectedProject._id, displayedSprint._id);
-                          }
-                        }] : [])
+                        ...(() => {
+                          const sel = sprints.find((s) => s._id === selectedSprintId);
+                          return sel ? [{
+                            key: 'current-sprint',
+                            label: `Sprint: ${sel.name}`,
+                            description: 'Tasks in the selected sprint',
+                            icon: <Calendar className="h-4 w-4" />,
+                            action: async () => {
+                              await reportService.downloadSprintTasks(currentTeam._id, selectedProject._id, sel._id);
+                            }
+                          }] : [];
+                        })()
                       ]}
                     />
                   )}
@@ -702,182 +965,192 @@ const Projects = () => {
                   {canManageMembers() && (
                     <button
                       onClick={() => setShowMembersModal(true)}
-                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-2"
+                      className="px-4 py-2 text-sm font-medium text-black bg-gray-200 hover:bg-white/20 rounded-lg transition-colors flex items-center gap-2 border border-white/10"
                     >
                       <Users className="h-4 w-4" />
                       Manage Members
                     </button>
                   )}
-                  {isAdmin?.() && (
-                    <>
-                      {selectedProject.teamLead && (
-                        <button
-                          onClick={handleRemoveTeamLead}
-                          disabled={assigning}
-                          className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                        >
-                          <X className="h-4 w-4" />
-                          Remove Team Lead
-                        </button>
-                      )}
-                      <button
-                        onClick={() => setShowAssignModal(true)}
-                        disabled={assigning}
-                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                      >
-                        <UserPlus className="h-4 w-4" />
-                        {selectedProject.teamLead ? 'Change Team Lead' : 'Assign Team Lead'}
-                      </button>
-                    </>
-                  )}
                 </div>
               </div>
             </div>
 
-            {/* Sprint & Backlog Overview */}
-            <div className="bg-gray-50 border-b border-gray-200 px-8 py-5">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="bg-white border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-blue-600" />
-                      <h3 className="font-semibold text-gray-900">Sprint Tracker</h3>
-                    </div>
-                    {displayedSprint && (
-                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800">
-                        {displayedSprint.status}
-                      </span>
-                    )}
-                  </div>
-                  {sprintLoading ? (
-                    <p className="text-sm text-gray-500">Loading sprint...</p>
-                  ) : displayedSprint ? (
-                    <>
-                      <p className="text-sm font-medium text-gray-900">{displayedSprint.name}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {formatDate(displayedSprint.startDate)} - {formatDate(displayedSprint.endDate)}
-                      </p>
-                      {sprintTimeline.length > 1 && (
-                        <div className="mt-2">
-                          <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Select Sprint Range
-                          </label>
-                          <select
-                            value={displayedSprint?._id || ''}
-                            onChange={(e) => {
-                              const nextId = e.target.value;
-                              const nextIndex = sprintTimeline.findIndex((s) => s._id === nextId);
-                              if (nextIndex >= 0) setSprintIndex(nextIndex);
-                            }}
-                            className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md bg-white text-gray-700"
-                          >
-                            {sprintTimeline.map((sprint) => (
-                              <option key={sprint._id} value={sprint._id}>
-                                {sprint.name} • {formatDate(sprint.startDate)} - {formatDate(sprint.endDate)}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                      <div className="mt-3">
-                        <p className="text-xs font-medium text-gray-600 mb-2">
-                          Tasks in this sprint: {sprintTasks.length}
-                        </p>
-                        {sprintTasksLoading ? (
-                          <p className="text-sm text-gray-500">Loading sprint tasks...</p>
-                        ) : sprintTasks.length > 0 ? (
-                          <ul className="space-y-2">
-                            {sprintTasks.slice(0, 5).map((task) => (
-                              <li key={task._id} className="text-sm text-gray-700 flex items-center justify-between">
-                                <span className="truncate">{task.title}</span>
-                                <span className="text-xs text-gray-400">{task.status}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-sm text-gray-500">No tasks for this sprint</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 mt-2">
-                        <button
-                          type="button"
-                          onClick={() => setSprintIndex((prev) => Math.min(sprintTimeline.length - 1, prev + 1))}
-                          disabled={sprintIndex >= sprintTimeline.length - 1}
-                          className="px-2 py-1 text-xs border border-gray-300 rounded text-gray-600 disabled:opacity-50"
-                        >
-                          Previous
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setSprintIndex((prev) => Math.max(0, prev - 1))}
-                          disabled={sprintIndex <= 0}
-                          className="px-2 py-1 text-xs border border-gray-300 rounded text-gray-600 disabled:opacity-50"
-                        >
-                          Next
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    (() => {
-                      const { start, end } = getDefaultSprintWindow();
-                      return (
-                        <>
-                          <p className="text-sm font-medium text-gray-900">Current Sprint (14 days)</p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {formatDate(start)} - {formatDate(end)}
-                          </p>
-                        </>
-                      );
-                    })()
-                  )}
-                </div>
+            {/* Sprint Selector Bar */}
+            <SprintSelectorBar
+              sprints={sprints}
+              activeSprint={sprints.find((s) => s.status === 'active')}
+              selectedSprintId={selectedSprintId}
+              onSprintSelect={setSelectedSprintId}
+              backlogCount={backlog.length}
+              onManageSprints={() => navigate(`/teams/${currentTeam._id}/projects/${selectedProject._id}/sprints`)}
+              onOpenSprintBoard={(sprintId) => navigate(`/teams/${currentTeam._id}/projects/${selectedProject._id}/sprints/${sprintId}`)}
+              formatDate={formatDate}
+              sprintLoading={sprintLoading}
+            />
 
-                <div className="bg-white border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <ClipboardList className="h-4 w-4 text-purple-600" />
-                      <h3 className="font-semibold text-gray-900">Backlog</h3>
-                    </div>
-                    <span className="text-xs font-medium px-2 py-1 rounded-full bg-purple-100 text-purple-800">
-                      {backlog.length} tasks
-                    </span>
-                  </div>
-                  {backlogLoading ? (
-                    <p className="text-sm text-gray-500">Loading backlog...</p>
-                  ) : backlog.length > 0 ? (
-                    <ul className="space-y-2">
-                      {backlog.slice(0, 5).map((task) => (
-                        <li key={task._id} className="text-sm text-gray-700 flex items-center justify-between">
-                          <span className="truncate">{task.title}</span>
-                          <span className="text-xs text-gray-400">{task.priority}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-gray-500">No backlog items</p>
-                  )}
+            {/* Controls Panel */}
+            <div className="bg-slate-50 border-b border-gray-200 px-4 sm:px-8 py-3">
+              {/* Metrics row */}
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => setMetricsHighlight('total')}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                    metricsHighlight === 'total'
+                      ? 'bg-white text-black border-2 border-black'
+                      : 'bg-white border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <span className={metricsHighlight === 'total' ? 'text-black' : 'text-gray-500'}>Total</span>
+                  <span className={`font-bold ${metricsHighlight === 'total' ? 'text-black' : 'text-gray-900'}`}>{projectMetrics.total}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMetricsHighlight('active')}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                    metricsHighlight === 'active'
+                      ? 'bg-white text-black border-2 border-black'
+                      : 'bg-white border-gray-200 hover:border-gray-400'
+                  }`}
+                >
+                  <span className={metricsHighlight === 'active' ? 'text-black' : 'text-gray-500'}>Active</span>
+                  <span className={`font-bold ${metricsHighlight === 'active' ? 'text-black' : 'text-gray-900'}`}>{projectMetrics.inProgress}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMetricsHighlight('done')}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                    metricsHighlight === 'done'
+                      ? 'bg-white text-black border-2 border-black'
+                      : 'bg-white border-gray-200 hover:border-green-300'
+                  }`}
+                >
+                  <span className={metricsHighlight === 'done' ? 'text-black' : 'text-gray-500'}>Done</span>
+                  <span className={`font-bold ${metricsHighlight === 'done' ? 'text-black' : 'text-green-700'}`}>{projectMetrics.completed}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMetricsHighlight('backlog')}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                    metricsHighlight === 'backlog'
+                      ? 'bg-white text-black border-2 border-black'
+                      : 'bg-white border-gray-200 hover:border-purple-300'
+                  }`}
+                >
+                  <span className={metricsHighlight === 'backlog' ? 'text-black' : 'text-gray-500'}>Backlog</span>
+                  <span className={`font-bold ${metricsHighlight === 'backlog' ? 'text-black' : 'text-purple-700'}`}>{projectMetrics.backlogCount}</span>
+                </button>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-white border border-gray-200">
+                  <span className="text-gray-500">Completion</span>
+                  <span className="font-bold text-gray-900">{projectMetrics.completionRate}%</span>
                 </div>
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <label className="text-sm font-medium text-gray-700">Tasks View</label>
+              {/* View switcher + filters */}
+              <div className="flex flex-wrap items-center gap-2">
+                {viewOptions.map((option) => {
+                  const Icon = option.icon;
+                  const active = viewMode === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setViewMode(option.id)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        active ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Issue type chips */}
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mr-1">Types</span>
+                {workItemTypes.map((type) => (
+                  <button
+                    type="button"
+                    key={type}
+                    onClick={() => setWorkTypeFilter((prev) => (prev === type ? 'all' : type))}
+                    className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition-colors ${
+                      workTypeFilter === type
+                        ? 'border-blue-300 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="capitalize">{type === 'story' ? 'Story' : type}</span>
+                    <span className="rounded bg-gray-100 px-1 py-0 text-[10px] font-semibold text-gray-500">
+                      {workTypeSummary[type] || 0}
+                    </span>
+                  </button>
+                ))}
+                <span className="ml-1 text-[10px] text-gray-400">
+                  {filteredTasks.length} items
+                </span>
+              </div>
+                <div className='flex gap-2 mt-3 ml-[-10px]'>
+              <div className="bg-gray-200" />
+
+                {viewMode === 'board' && (
+                  <div className="flex items-center gap-1 bg-gray-900 rounded-lg px-1.5 py-0.5">
+                    <button
+                      type="button"
+                      onClick={() => handleBoardSubViewChange('board')}
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                        boardSubView === 'board' ? 'bg-white text-gray-900' : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      <LayoutGrid className="w-3 h-3" />
+                      Board
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleBoardSubViewChange('list')}
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                        boardSubView === 'list' ? 'bg-white text-gray-900' : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      <List className="w-3 h-3" />
+                      List
+                    </button>
+                  </div>
+                )}
+
                 <select
                   value={taskFilter}
                   onChange={(e) => setTaskFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="px-2 py-1.5 border border-gray-200 rounded-lg bg-white text-xs"
                 >
                   <option value="all">All Tasks</option>
                   <option value="assigned">Assigned To Me</option>
                   <option value="completed">Completed</option>
                 </select>
-              </div>
+
+                <button
+                  type="button"
+                  onClick={() => { setTaskFilter('all'); setWorkTypeFilter('all'); setSelectedSprintId('all'); setActiveFilters([]); }}
+                  className="px-2.5 py-1.5 text-[11px] font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Reset
+                </button>
+                </div>
+              {/* Filter bar */}
+              <FilterBar
+                filters={activeFilters}
+                onFiltersChange={setActiveFilters}
+                assignees={projectAssignees}
+                workflowStatuses={workflowStatuses}
+              />
             </div>
 
             {/* Assign Team Lead Modal */}
             {showAssignModal && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-                  <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[80vh] flex flex-col">
+                  <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
                     <h3 className="text-lg font-semibold text-gray-900">
                       Assign Team Lead
                     </h3>
@@ -888,11 +1161,11 @@ const Projects = () => {
                       <X className="h-5 w-5" />
                     </button>
                   </div>
-                  <div className="px-6 py-4">
+                  <div className="px-6 py-4 overflow-y-auto flex-1">
                     <p className="text-sm text-gray-600 mb-4">
                       Select a team member to assign as team lead for "{selectedProject.name}"
                     </p>
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                    <div className="space-y-2">
                       {teamMembers.length === 0 ? (
                         <p className="text-gray-500 text-center py-4">No team members available</p>
                       ) : (
@@ -924,7 +1197,7 @@ const Projects = () => {
                       )}
                     </div>
                   </div>
-                  <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+                  <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 flex-shrink-0">
                     <button
                       onClick={() => setShowAssignModal(false)}
                       className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
@@ -939,8 +1212,8 @@ const Projects = () => {
             {/* Manage Members Modal */}
             {showMembersModal && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
-                  <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[85vh] flex flex-col">
+                  <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
                     <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                       <Users className="h-5 w-5" />
                       Manage Project Members
@@ -953,12 +1226,45 @@ const Projects = () => {
                     </button>
                   </div>
 
-                  <div className="px-6 py-4 space-y-6">
+                  <div className="px-6 py-4 space-y-6 overflow-y-auto flex-1">
                     <div>
                       <p className="text-sm text-gray-600">
                         Project: <span className="font-medium text-gray-900">{selectedProject.name}</span>
                       </p>
                     </div>
+
+                    {isAdmin?.() && (
+                      <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <h4 className="font-medium text-indigo-900">Team Lead</h4>
+                            <p className="text-sm text-indigo-700 mt-1">
+                              {selectedProject.teamLead
+                                ? `Current: ${selectedProject.teamLead.name}`
+                                : 'No team lead assigned'}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {selectedProject.teamLead && (
+                              <button
+                                onClick={handleRemoveTeamLead}
+                                disabled={assigning}
+                                className="px-3 py-2 text-xs font-medium text-red-700 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                Remove Team Lead
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setShowAssignModal(true)}
+                              disabled={assigning}
+                              className="px-3 py-2 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {selectedProject.teamLead ? 'Change Team Lead' : 'Assign Team Lead'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Add Member */}
                     <div className="bg-gray-50 rounded-lg p-4">
@@ -1043,7 +1349,7 @@ const Projects = () => {
                     </div>
                   </div>
 
-                  <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+                  <div className="px-6 py-4 border-t border-gray-200 flex justify-end flex-shrink-0">
                     <button
                       onClick={() => setShowMembersModal(false)}
                       className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
@@ -1055,21 +1361,87 @@ const Projects = () => {
               </div>
             )}
 
-            {/* Kanban Board */}
-            <div className="pb-6">
-              <TrackingBoard
-                tasks={filteredTasks}
-                loading={tasksLoading}
-                onTaskCreate={handleTaskCreate}
-                onTaskUpdate={handleTaskUpdate}
-                onTaskDelete={handleTaskDelete}
-                onTaskStatusChange={handleTaskStatusChange}
-                assignees={projectAssignees}
-                teamId={currentTeam?._id}
-                projectId={selectedProject?._id}
-                initialTaskId={taskIdParam}
-                sprintEndDate={displayedSprint?.endDate || activeSprint?.endDate}
-              />
+            <div className="pb-6 px-4 lg:px-5">
+              {viewMode === 'board' && (
+                <>
+                  {boardSubView === 'board' ? (
+                    <TrackingBoard
+                      tasks={filteredTasksWithCode}
+                      loading={tasksLoading}
+                      onTaskCreate={handleTaskCreate}
+                      onTaskUpdate={handleTaskUpdate}
+                      onTaskDelete={handleTaskDelete}
+                      onTaskStatusChange={handleTaskStatusChange}
+                      onInlineTaskCreate={async (data) => {
+                        const sprintId = selectedSprintId && selectedSprintId !== 'all' && selectedSprintId !== 'backlog' ? selectedSprintId : undefined;
+                        await handleTaskCreate({ ...data, sprint: sprintId || undefined });
+                      }}
+                      assignees={projectAssignees}
+                      teamId={currentTeam?._id}
+                      projectId={selectedProject?._id}
+                      initialTaskId={taskIdParam}
+                      sprintEndDate={sprints.find((s) => s._id === selectedSprintId)?.endDate}
+                      workflowStatuses={workflowStatuses}
+                      workItemTypes={workItemTypes}
+                      parentTasks={tasks.filter((task) => task.workItemType !== 'subtask')}
+                      onNavigateToCreate={navigateToCreateTask}
+                      onNavigateToTask={navigateToTask}
+                      onNavigateToComplete={navigateToCompleteTask}
+                    />
+                  ) : (
+                    <ListView
+                      tasks={filteredTasksWithCode}
+                      onOpenTask={navigateToTask}
+                      onEditTask={(task) => navigateToTask(task._id)}
+                      onCreateTask={navigateToCreateTask}
+                      onStatusChange={handleInlineStatusChange}
+                      workflowStatuses={workflowStatuses}
+                    />
+                  )}
+                </>
+              )}
+
+              {viewMode === 'hierarchy' && (
+                <HierarchyView
+                  tasks={filteredTasksWithCode}
+                  onOpenTask={navigateToTask}
+                  onEditTask={(task) => navigateToTask(task._id)}
+                  onCreateTask={navigateToCreateTask}
+                  workflowStatuses={workflowStatuses}
+                />
+              )}
+
+              {viewMode === 'timeline' && (
+                <TimelineView
+                  tasks={filteredTasksWithCode}
+                  onOpenTask={navigateToTask}
+                  workflowStatuses={workflowStatuses}
+                  sprints={sprints}
+                  onSprintClick={(sprintId) => navigate(`/teams/${currentTeam._id}/projects/${selectedProject._id}/sprints/${sprintId}`)}
+                />
+              )}
+
+              {viewMode === 'calendar' && (
+                <SprintCalendarView
+                  tasks={filteredTasksWithCode}
+                  sprintStartDate={
+                    selectedSprintId && selectedSprintId !== 'all' && selectedSprintId !== 'backlog'
+                      ? sprints.find((s) => s._id === selectedSprintId)?.startDate
+                      : null
+                  }
+                  sprintEndDate={
+                    selectedSprintId && selectedSprintId !== 'all' && selectedSprintId !== 'backlog'
+                      ? sprints.find((s) => s._id === selectedSprintId)?.endDate
+                      : null
+                  }
+                  workflowStatuses={workflowStatuses}
+                  onOpenTask={navigateToTask}
+                />
+              )}
+
+              {viewMode === 'analytics' && (
+                <ProjectAnalytics teamId={currentTeam?._id} projectId={selectedProject?._id} />
+              )}
             </div>
           </>
         ) : (

@@ -13,7 +13,8 @@ const ProjectSidebar = ({
   currentUser,
   isAdmin = false,
   roleFilter,
-  onRoleFilterChange
+  onRoleFilterChange,
+  canCreateProject = false
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
@@ -134,7 +135,9 @@ const ProjectSidebar = ({
           </div>
           <button
             onClick={handleCreate}
-            className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            disabled={!canCreateProject}
+            className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            title={!canCreateProject ? 'Only Admin/Manager/SME can create projects' : 'Create Project'}
           >
             <Plus className="w-5 h-5" />
             <span>New Project</span>
@@ -186,7 +189,7 @@ const ProjectSidebar = ({
                     />
                   </div>
                   
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 pr-16">
                     <h3 className="font-semibold text-gray-900 truncate">
                       {project.name}
                     </h3>
@@ -198,7 +201,7 @@ const ProjectSidebar = ({
                   </div>
                 </div>
 
-                <div className="absolute top-3 right-3">
+                <div className="absolute bottom-3 right-3">
                   {getRoleBadge(project)}
                 </div>
 

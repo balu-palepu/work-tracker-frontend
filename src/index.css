@@ -19,7 +19,7 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed;
   }
   
   .btn-secondary {
@@ -57,6 +57,178 @@
   .badge-info {
     @apply bg-blue-100 text-blue-800;
   }
+
+  /* Global main button palette guardrail:
+     blue CTA buttons render as black filled buttons. */
+  button[class*="bg-blue-"],
+  a[class*="bg-blue-"],
+  button[class*="bg-black"],
+  a[class*="bg-black"] {
+    background-color: #000 !important;
+    color: #fff !important;
+    border-color: #000 !important;
+  }
+
+  button[class*="hover:bg-blue-"]:hover,
+  a[class*="hover:bg-blue-"]:hover,
+  button[class*="hover:bg-black"]:hover,
+  a[class*="hover:bg-black"]:hover {
+    background-color: #1f2937 !important;
+    color: #fff !important;
+  }
+
+  button[class*="border-blue-"],
+  a[class*="border-blue-"] {
+    border-color: #000 !important;
+  }
+
+  [class*="border-blue-"] {
+    border-color: #000 !important;
+  }
+
+  /* Keep Tracking Board in-progress column blue */
+  .tracking-board-inprogress {
+    background-color: #eff6ff !important;
+    border-color: #bfdbfe !important;
+  }
+
+  .tracking-board-inprogress button {
+    color: #2563eb !important;
+  }
+
+}
+
+/* Newsletter rich content */
+.newsletter-content {
+  color: #111827;
+  line-height: 1.75;
+  font-size: 0.9375rem;
+}
+
+.newsletter-content h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 1.5rem 0 0.75rem;
+  line-height: 1.3;
+}
+
+.newsletter-content h2 {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 1.25rem 0 0.5rem;
+  line-height: 1.35;
+}
+
+.newsletter-content h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 1rem 0 0.5rem;
+}
+
+.newsletter-content p {
+  margin: 0.5rem 0;
+}
+
+.newsletter-content ul,
+.newsletter-content ol {
+  margin: 0.5rem 0 0.75rem 1.5rem;
+  padding: 0;
+}
+
+.newsletter-content ul {
+  list-style-type: disc;
+}
+
+.newsletter-content ol {
+  list-style-type: decimal;
+}
+
+.newsletter-content li {
+  margin: 0.25rem 0;
+}
+
+.newsletter-content blockquote {
+  border-left: 4px solid #d1d5db;
+  margin: 1rem 0;
+  padding: 0.5rem 1rem;
+  color: #4b5563;
+  background: #f9fafb;
+  border-radius: 0 0.375rem 0.375rem 0;
+}
+
+.newsletter-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+}
+
+.newsletter-content th {
+  border: 1px solid #d1d5db;
+  padding: 0.625rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+  background: #f9fafb;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.newsletter-content td {
+  border: 1px solid #d1d5db;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.newsletter-content a {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.newsletter-content a:hover {
+  color: #1d4ed8;
+}
+
+.newsletter-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.newsletter-content hr {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 1.5rem 0;
+}
+
+.newsletter-content figure {
+  margin: 1rem 0;
+}
+
+.newsletter-content figcaption {
+  text-align: center;
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin-top: 0.5rem;
+}
+
+/* CKEditor overrides for newsletter modal */
+.ck-editor__editable {
+  min-height: 280px !important;
+  max-height: 500px !important;
+}
+
+/* Sprint selector selected state (kept non-black intentionally) */
+.sprint-selected-row {
+  background-color: #eff6ff !important;
+}
+
+.sprint-selected-text {
+  color: #1d4ed8 !important;
 }
 
 /* Custom scrollbar */

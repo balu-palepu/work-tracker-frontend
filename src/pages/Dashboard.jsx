@@ -183,7 +183,7 @@ const Dashboard = () => {
     return 'bg-red-50 text-red-700 border-red-100';
   };
 
-  // FIXED: Show actual selected date, not "Today" text
+  // Show actual selected date, not "Today" text
   const formatDateDisplay = (dateStr) => {
     const date = new Date(dateStr + 'T00:00:00');
     return date.toLocaleDateString('en-US', { 
@@ -194,9 +194,24 @@ const Dashboard = () => {
     });
   };
 
+  const toDateInput = (dateObj) => {
+    const year = dateObj.getFullYear();
+    const month = `${dateObj.getMonth() + 1}`.padStart(2, '0');
+    const day = `${dateObj.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const changeSelectedDateBy = (offsetDays) => {
+    const base = new Date(`${selectedDate}T00:00:00`);
+    base.setDate(base.getDate() + offsetDays);
+    setSelectedDate(toDateInput(base));
+  };
+
+  const todayDate = toDateInput(new Date());
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 bg-gray-50 min-h-screen">
-      {/* HEADER SECTION - FIXED DATE HANDLING */}
+      {/* HEADER SECTION - DATE HANDLING */}
       <div className="mb-8 flex items-center justify-between bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
         <div className="flex items-center gap-4">
           <div className="bg-blue-50 p-2 rounded-lg">
@@ -225,27 +240,19 @@ const Dashboard = () => {
         
         <div className="flex gap-2 items-center">
           <button
-            onClick={() => {
-              const yesterday = new Date(selectedDate);
-              yesterday.setDate(yesterday.getDate() - 1);
-              setSelectedDate(yesterday.toISOString().split('T')[0]);
-            }}
+            onClick={() => changeSelectedDateBy(-1)}
             className="px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg flex gap-2"
           >
             <ChevronsLeft className="h-5 w-5" /> Previous
           </button>
           <button
-            onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
-            className="px-4 py-2 text-sm font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg"
+            onClick={() => setSelectedDate(todayDate)}
+            className="px-4 py-2 text-sm font-medium bg-black text-white hover:bg-gray-800 rounded-lg"
           >
             Today
           </button>
           <button
-            onClick={() => {
-              const tomorrow = new Date(selectedDate);
-              tomorrow.setDate(tomorrow.getDate() + 1);
-              setSelectedDate(tomorrow.toISOString().split('T')[0]);
-            }}
+            onClick={() => changeSelectedDateBy(1)}
             className="px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg flex gap-2"
           >
             Next <ChevronsRight className="h-5 w-5" />

@@ -24,16 +24,18 @@ export const SprintProvider = ({ children }) => {
     if (!currentTeam) return;
 
     try {
-      const response = await sprintService.getSprints(currentTeam._id, projectId);
-      setSprints(response.data);
+      // Fetch all sprints (not paginated) so the sprint tracker works correctly
+      const response = await sprintService.getSprints(currentTeam._id, projectId, { limit: 200 });
+      const sprintList = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
+      setSprints(sprintList);
 
       // Set active sprint as current if exists
-      const activeSprint = response.data.find(s => s.status === 'active');
+      const activeSprint = sprintList.find(s => s.status === 'active');
       if (activeSprint) {
         setCurrentSprint(activeSprint);
       }
 
-      return response.data;
+      return sprintList;
     } catch (error) {
       console.error('Error loading sprints:', error);
       throw error;
