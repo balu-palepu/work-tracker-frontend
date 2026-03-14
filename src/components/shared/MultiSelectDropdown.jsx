@@ -152,9 +152,9 @@ const MultiSelectDropdown = ({
                   >
                     {/* Checkbox */}
                     <div
-                      className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center ${
+                      className={`flex-shrink-0 w-5 h-5 rounded border flex items-center justify-center ${
                         isSelected
-                          ? 'bg-blue-600 border-blue-600'
+                          ? 'bg-blue-500 border-blue-300'
                           : 'border-gray-300 bg-white'
                       }`}
                     >

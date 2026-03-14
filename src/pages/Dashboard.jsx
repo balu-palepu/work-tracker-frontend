@@ -3,6 +3,7 @@ import { Plus, Edit, Trash2, Calendar, Clock, Smile, Activity, ShieldCheck, List
 import { toast } from 'react-toastify';
 import activityService from '../services/activityService';
 import reportService from '../services/reportService';
+import projectService from '../services/projectService';
 import { useTeam } from '../context/TeamContext';
 import DeleteConfirmationModal from '../components/shared/DeleteConfirmationModal';
 import DownloadReportButton from '../components/shared/DownloadReportButton';
@@ -28,11 +29,18 @@ const Dashboard = () => {
   const [modal, setModal] = useState({ isOpen: false, type: '', index: null, data: {} });
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, type: '', index: null, item: null });
   const [isDeleting, setIsDeleting] = useState(false);
+  const [projects, setProjects] = useState([]);
 
   // FIXED: Watch selectedDate instead of activity.date
   useEffect(() => {
     fetchData();
   }, [selectedDate]);
+
+  useEffect(() => {
+    if (currentTeam?._id) {
+      projectService.getProjects(currentTeam._id).then(res => setProjects(res.data || [])).catch(() => {});
+    }
+  }, [currentTeam?._id]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -93,14 +101,15 @@ const Dashboard = () => {
 
   const openModal = (type, index = null) => {
     let initialData = {
-      title: '', 
+      title: '',
       durationValue: '30',
-      summary: '', 
+      summary: '',
       description: '',
       status: 'pending',
       priority: 'medium',
       category: 'development',
-      type: 'break'
+      type: 'break',
+      project: ''
     };
     
     if (index !== null) {
@@ -210,7 +219,7 @@ const Dashboard = () => {
   const todayDate = toDateInput(new Date());
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 bg-gray-50 min-h-screen">
+    <div className="max-w-[1400px] mx-auto px-4 py-8 bg-gray-50 min-h-screen">
       {/* HEADER SECTION - DATE HANDLING */}
       <div className="mb-8 flex items-center justify-between bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
         <div className="flex items-center gap-4">
@@ -374,6 +383,11 @@ const Dashboard = () => {
                             <div className="font-semibold text-gray-900 flex items-center gap-2">
                               {item.title} {item.isConfidential && <ShieldCheck size={12} className="text-blue-500" />}
                             </div>
+                            {item.project && (
+                              <div className="text-xs text-blue-600 font-medium mt-0.5">
+                                {projects.find(p => p._id === (item.project?._id || item.project))?.name || ''}
+                              </div>
+                            )}
                             <div className="text-sm text-gray-500 mt-1">
                               {item.summary || item.description || <span className="italic text-gray-300">No details provided</span>}
                             </div>
@@ -444,6 +458,16 @@ const Dashboard = () => {
                 <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Title</label>
                 <input className="w-full border-gray-100 bg-gray-50 rounded-lg p-3 font-semibold outline-none focus:ring-1 focus:ring-blue-500" value={modal.data.title} onChange={e => setModal({...modal, data: {...modal.data, title: e.target.value}})} />
               </div>
+
+              {(modal.type === 'task' || modal.type === 'meeting') && (
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Project</label>
+                  <select className="w-full border-gray-100 bg-gray-50 rounded-lg p-3 outline-none focus:ring-1 focus:ring-blue-500 text-sm" value={modal.data.project || ''} onChange={e => setModal({...modal, data: {...modal.data, project: e.target.value}})}>
+                    <option value="">No Project</option>
+                    {projects.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">

@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronRight, ChevronDown, Plus, GitBranch } from 'lucide-react';
-import WorkItemIcon from '../shared/WorkItemIcon';
 
 const PRIORITY_COLORS = {
   urgent: 'bg-red-100 text-red-700',
@@ -45,7 +44,6 @@ const HierarchyRow = ({ task, level, children, onOpen, onEdit, workflowStatuses 
                 <span className="w-3.5 h-3.5 inline-block" />
               )}
             </button>
-            <WorkItemIcon type={task.workItemType} size="sm" className="mr-2 flex-shrink-0" />
             <button
               onClick={() => onOpen(task._id)}
               className="text-sm font-medium text-gray-900 hover:text-blue-600 truncate text-left transition-colors"

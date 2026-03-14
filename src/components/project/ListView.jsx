@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ArrowUpDown, ArrowUp, ArrowDown, Plus } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Plus, Edit2, Trash2 } from 'lucide-react';
 
 const PRIORITY_COLORS = {
   urgent: 'bg-red-100 text-red-700',
@@ -10,7 +10,7 @@ const PRIORITY_COLORS = {
 
 const PRIORITY_ORDER = { urgent: 0, high: 1, medium: 2, low: 3 };
 
-const ListView = ({ tasks, onOpenTask, onEditTask, onCreateTask, onStatusChange, workflowStatuses }) => {
+const ListView = ({ tasks, onOpenTask, onEditTask, onDeleteTask, onCreateTask, onStatusChange, workflowStatuses }) => {
   const [sortField, setSortField] = useState('title');
   const [sortDir, setSortDir] = useState('asc');
 
@@ -113,26 +113,27 @@ const ListView = ({ tasks, onOpenTask, onEditTask, onCreateTask, onStatusChange,
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
-              {[
-                { field: 'workItemType', label: 'Type', width: 'w-44' },
-                { field: 'title', label: 'Title', width: '' },
-                { field: 'status', label: 'Status', width: 'w-28' },
-                { field: 'priority', label: 'Priority', width: 'w-24' },
-                { field: 'assignedTo', label: 'Assignee', width: 'w-36' },
-                { field: 'storyPoints', label: 'SP', width: 'w-16' },
-                { field: 'dueDate', label: 'Due Date', width: 'w-28' },
-              ].map(col => (
-                <th
-                  key={col.field}
-                  onClick={() => handleSort(col.field)}
-                  className={`py-3 px-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700 ${col.width}`}
-                >
-                  <div className="flex items-center gap-1">
-                    {col.label}
-                    <SortIcon field={col.field} />
-                  </div>
-                </th>
-              ))}
+                {[
+                  { field: 'workItemType', label: 'Type', width: 'w-44' },
+                  { field: 'title', label: 'Title', width: '' },
+                  { field: 'status', label: 'Status', width: 'w-28' },
+                  { field: 'priority', label: 'Priority', width: 'w-24' },
+                  { field: 'assignedTo', label: 'Assignee', width: 'w-36' },
+                  { field: 'storyPoints', label: 'SP', width: 'w-16' },
+                  { field: 'dueDate', label: 'Due Date', width: 'w-28' },
+                  { field: 'actions', label: 'Actions', width: 'w-28' },
+                ].map(col => (
+                  <th
+                    key={col.field}
+                    onClick={col.field === 'actions' ? undefined : () => handleSort(col.field)}
+                    className={`py-3 px-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider ${col.field === 'actions' ? '' : 'cursor-pointer hover:text-gray-700'} ${col.width}`}
+                  >
+                    <div className="flex items-center gap-1">
+                      {col.label}
+                      {col.field !== 'actions' && <SortIcon field={col.field} />}
+                    </div>
+                  </th>
+                ))}
             </tr>
           </thead>
           <tbody>
@@ -191,6 +192,26 @@ const ListView = ({ tasks, onOpenTask, onEditTask, onCreateTask, onStatusChange,
                   </td>
                   <td className={`py-2.5 px-3 text-sm ${isOverdue ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
                     {formatDate(task.dueDate)}
+                  </td>
+                  <td className="py-2.5 px-3">
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => onEditTask?.(task)}
+                        className="p-1 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                        title="Edit task"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteTask?.(task._id)}
+                        className="p-1 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                        title="Delete task"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );

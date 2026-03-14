@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Plus, ListTodo, Zap, CheckCircle2, Circle } from 'lucide-react';
 import TaskCard from './TaskCard';
@@ -28,31 +28,16 @@ const CATEGORY_STYLES = {
 
 const WIP_LIMIT = 10;
 
-const COMPLETED_STATUSES = ['resolved', 'completed', 'closed', 'done'];
-
 const TrackingBoard = ({
   tasks,
   loading,
-  onTaskCreate,
-  onTaskUpdate,
   onTaskDelete,
   onTaskStatusChange,
-  onInlineTaskCreate,
-  assignees,
-  teamId,
-  projectId,
-  initialTaskId,
-  sprintEndDate,
   workflowStatuses,
-  workItemTypes,
-  parentTasks,
   onNavigateToCreate,
   onNavigateToTask,
   onNavigateToComplete,
 }) => {
-  const [inlineCreateColumn, setInlineCreateColumn] = useState(null);
-  const [inlineTitle, setInlineTitle] = useState('');
-  const [inlineCreating, setInlineCreating] = useState(false);
 
   // Build columns from workflow statuses
   const columns = useMemo(() => {
@@ -60,30 +45,26 @@ const TrackingBoard = ({
     return [...statuses]
       .filter((s) => s.id !== 'closed')
       .map((s) => {
-        if (s.id === 'new') return { ...s, id: 'todo', label: 'To Do' };
-        if (s.id === 'active') return { ...s, id: 'inprogress', label: 'In Progress' };
-        if (s.id === 'resolved') return { ...s, label: 'Completed/Closed' };
+        if (s.id === 'new') return { ...s, id: 'todo', label: 'To Do', category: 'todo' };
+        if (s.id === 'active') return { ...s, id: 'inprogress', label: 'In Progress', category: 'inprogress' };
+        if (s.id === 'resolved') return { ...s, label: 'Completed/Closed', category: 'completed' };
+        // Normalise category so headers always get the right style
+        const cat = s.category;
+        if (!cat || !CATEGORY_STYLES[cat]) {
+          if (s.id === 'todo' || s.id === 'backlog') return { ...s, category: 'todo' };
+          if (s.id === 'inprogress' || s.id === 'in_progress') return { ...s, category: 'inprogress' };
+          return { ...s, category: 'completed' };
+        }
         return s;
       })
       .sort((a, b) => a.order - b.order);
   }, [workflowStatuses]);
 
-  // Compute subtask data from task list
-  const { subtaskMap, taskTitleMap } = useMemo(() => {
-    const sMap = {};
+  // Build title map for parent breadcrumbs
+  const taskTitleMap = useMemo(() => {
     const tMap = {};
-    tasks.forEach((t) => {
-      tMap[t._id] = t.title;
-      const parentId = typeof t.parentTask === 'object' ? t.parentTask?._id : t.parentTask;
-      if (parentId) {
-        if (!sMap[parentId]) sMap[parentId] = { total: 0, completed: 0 };
-        sMap[parentId].total++;
-        if (COMPLETED_STATUSES.includes(String(t.status || '').toLowerCase())) {
-          sMap[parentId].completed++;
-        }
-      }
-    });
-    return { subtaskMap: sMap, taskTitleMap: tMap };
+    tasks.forEach((t) => { tMap[t._id] = t.title; });
+    return tMap;
   }, [tasks]);
 
   // Map task status to column
@@ -135,20 +116,6 @@ const TrackingBoard = ({
   const handleOpenTask = (taskId) => {
     if (onNavigateToTask) {
       onNavigateToTask(taskId);
-    }
-  };
-
-  const handleInlineCreate = async (columnId) => {
-    if (!inlineTitle.trim() || !onInlineTaskCreate) return;
-    setInlineCreating(true);
-    try {
-      await onInlineTaskCreate({ title: inlineTitle.trim(), status: columnId, workItemType: 'task' });
-      setInlineTitle('');
-      setInlineCreateColumn(null);
-    } catch {
-      // error handled by parent
-    } finally {
-      setInlineCreating(false);
     }
   };
 
@@ -204,14 +171,6 @@ const TrackingBoard = ({
                   <Plus className="w-5 h-5" />
                 </button>
               </div>
-              {tasks.length > 0 && (
-                <div className="w-full h-0.5 bg-gray-200/60 rounded-full mt-2">
-                  <div
-                    className="h-0.5 rounded-full transition-all"
-                    style={{ width: `${(columnTasks.length / Math.max(tasks.length, 1)) * 100}%`, backgroundColor: column.color }}
-                  />
-                </div>
-              )}
             </div>
 
             {/* Droppable Area */}
@@ -232,80 +191,41 @@ const TrackingBoard = ({
                       <p className="text-xs font-medium">No items</p>
                     </div>
                   ) : (
-                    columnTasks.map((task, index) => {
-                      const sub = subtaskMap[task._id];
-                      return (
-                        <Draggable
-                          key={task._id}
-                          draggableId={task._id}
-                          index={index}
-                        >
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                            >
-                              <TaskCard
-                                task={task}
-                                isDragging={snapshot.isDragging}
-                                onEdit={() => handleOpenTask(task._id)}
-                                onDelete={() => onTaskDelete(task._id)}
-                                onOpen={() => handleOpenTask(task._id)}
-                                subtaskCount={sub?.total || 0}
-                                completedSubtasks={sub?.completed || 0}
-                                parentTaskTitle={getParentTitle(task)}
-                              />
-                            </div>
-                          )}
-                        </Draggable>
-                      );
-                    })
+                    columnTasks.map((task, index) => (
+                      <Draggable
+                        key={task._id}
+                        draggableId={task._id}
+                        index={index}
+                      >
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                          >
+                            <TaskCard
+                              task={task}
+                              isDragging={snapshot.isDragging}
+                              onEdit={() => handleOpenTask(task._id)}
+                              onDelete={() => onTaskDelete(task._id)}
+                              onOpen={() => handleOpenTask(task._id)}
+                              parentTaskTitle={getParentTitle(task)}
+                            />
+                          </div>
+                        )}
+                      </Draggable>
+                    ))
                   )}
                   {provided.placeholder}
 
-                  {/* Inline Quick Create */}
-                  {onInlineTaskCreate && (
-                    <>
-                      {inlineCreateColumn === column.id ? (
-                        <div className="bg-white border-2 border-blue-300 rounded-xl p-3 shadow-sm">
-                          <input
-                            autoFocus
-                            value={inlineTitle}
-                            onChange={(e) => setInlineTitle(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && inlineTitle.trim()) handleInlineCreate(column.id);
-                              if (e.key === 'Escape') { setInlineCreateColumn(null); setInlineTitle(''); }
-                            }}
-                            placeholder="What needs to be done?"
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            disabled={inlineCreating}
-                          />
-                          <div className="flex items-center gap-2 mt-2">
-                            <button
-                              onClick={() => handleInlineCreate(column.id)}
-                              disabled={inlineCreating || !inlineTitle.trim()}
-                              className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50"
-                            >
-                              {inlineCreating ? 'Adding...' : 'Add'}
-                            </button>
-                            <button
-                              onClick={() => { setInlineCreateColumn(null); setInlineTitle(''); }}
-                              className="px-3 py-1.5 text-gray-500 text-xs hover:text-gray-700"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => { setInlineCreateColumn(column.id); setInlineTitle(''); }}
-                          className="w-full py-2 text-sm text-gray-400 hover:text-blue-600 hover:bg-white rounded-lg transition-colors flex items-center justify-center gap-1"
-                        >
-                          <Plus className="w-4 h-4" /> New Item
-                        </button>
-                      )}
-                    </>
+                  {/* New Item → navigate to create page */}
+                  {onNavigateToCreate && (
+                    <button
+                      onClick={handleCreateTask}
+                      className="w-full py-2 text-sm text-gray-400 hover:text-blue-600 hover:bg-white rounded-lg transition-colors flex items-center justify-center gap-1"
+                    >
+                      <Plus className="w-4 h-4" /> New Item
+                    </button>
                   )}
                 </div>
               )}

@@ -4,10 +4,13 @@ import { useTeam } from '../context/TeamContext';
 import { toast } from 'react-toastify';
 import authService from '../services/authService';
 import { User, Mail, Lock, Save, Check, X, Eye, EyeOff } from 'lucide-react';
+import { SPECIALTY_OPTIONS, getMemberDesignation, normalizeSpecialtySelection } from '../utils/memberSpecialties';
 
 const Profile = () => {
   const { user, updateUser } = useAuth();
   const { isAdmin, teamMembership } = useTeam();
+  const currentDesignation = getMemberDesignation(user);
+  const matchedSpeciality = SPECIALTY_OPTIONS.find((option) => option !== 'Other' && option === currentDesignation);
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [emailError, setEmailError] = useState('');
@@ -15,6 +18,8 @@ const Profile = () => {
   const [profileData, setProfileData] = useState({
     name: user?.name || '',
     email: user?.email || '',
+    speciality: matchedSpeciality || (currentDesignation ? 'Other' : ''),
+    otherSpeciality: matchedSpeciality ? '' : currentDesignation,
   });
 
   const reportingManagerName = user?.reportingManager?.name || user?.reportingManagerName || '';
@@ -81,10 +86,20 @@ const Profile = () => {
       setEmailError('Enter a valid email address');
       return;
     }
+    const speciality = normalizeSpecialtySelection(profileData.speciality, profileData.otherSpeciality);
+    if (!speciality) {
+      toast.error('Please select your designation');
+      return;
+    }
     setLoading(true);
 
     try {
-      const response = await authService.updateProfile(profileData);
+      const response = await authService.updateProfile({
+        name: profileData.name,
+        email: profileData.email,
+        speciality,
+        customTitle: speciality,
+      });
       updateUser(response.user);
       toast.success('Profile updated successfully');
     } catch (error) {
@@ -137,7 +152,7 @@ const Profile = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Profile Settings</h1>
         <p className="text-gray-600 mt-1">Manage your account settings and preferences</p>
@@ -199,6 +214,44 @@ const Profile = () => {
                 />
               </div>
             </div>
+
+            <div>
+              <label htmlFor="speciality" className="block text-sm font-medium text-gray-700 mb-1">
+                Designation
+              </label>
+              <select
+                id="speciality"
+                name="speciality"
+                value={profileData.speciality}
+                onChange={handleProfileChange}
+                className="input-field appearance-none bg-white"
+                style={{ height: '42px' }}
+              >
+                <option value="">Select designation</option>
+                {SPECIALTY_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {profileData.speciality === 'Other' && (
+              <div>
+                <label htmlFor="otherSpeciality" className="block text-sm font-medium text-gray-700 mb-1">
+                  Enter Designation
+                </label>
+                <input
+                  type="text"
+                  id="otherSpeciality"
+                  name="otherSpeciality"
+                  value={profileData.otherSpeciality}
+                  onChange={handleProfileChange}
+                  className="input-field"
+                  placeholder="Enter your designation"
+                />
+              </div>
+            )}
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
@@ -400,6 +453,12 @@ const Profile = () => {
               {user?.role === 'admin' || isTeamAdmin
                 ? 'Self'
                 : reportingManagerName || 'Not assigned'}
+            </span>
+          </div>
+          <div className="flex justify-between py-2 border-b border-gray-200">
+            <span className="text-gray-600">Designation</span>
+            <span className="font-medium text-gray-900">
+              {getMemberDesignation(user) || 'Not set'}
             </span>
           </div>
           <div className="flex justify-between py-2">

@@ -6,6 +6,37 @@ import adminService from '../services/adminService';
 import teamService from '../services/teamService';
 import { AlertCircle, ArrowLeft, Clock, Users, CheckCircle, ChevronsLeft } from 'lucide-react';
 
+const normalizeRole = (role) => String(role || '').trim().toLowerCase();
+
+const getUserId = (value) => {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  return value._id || null;
+};
+
+const getReportingManagerId = (member) => (
+  getUserId(member?.reportingManager)
+  || getUserId(member?.reportingManagerId)
+  || getUserId(member?.user?.reportingManager)
+  || getUserId(member?.user?.reportingManagerId)
+);
+
+const getMemberUserId = (member) => (
+  getUserId(member?.user) || getUserId(member)
+);
+
+const getMemberName = (member) => (
+  member?.user?.name || member?.name || 'Member'
+);
+
+const extractMembers = (response) => {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response?.members)) return response.members;
+  if (Array.isArray(response?.data?.members)) return response.data.members;
+  return [];
+};
+
 const TeamActivity = () => {
   const { teamId } = useParams();
   const navigate = useNavigate();
@@ -37,8 +68,8 @@ const TeamActivity = () => {
   const loadMembers = async () => {
     try {
       setLoading(true);
-      const response = await teamService.getTeamMembers(currentTeam._id);
-      setTeamMembers(response.data || []);
+      const response = await teamService.getTeamMembers(currentTeam._id, { limit: 1000 });
+      setTeamMembers(extractMembers(response));
     } catch (err) {
       console.error('Error loading team members:', err);
       setTeamMembers([]);
@@ -50,12 +81,12 @@ const TeamActivity = () => {
   const directReportMembers = useMemo(() => {
     if (!user?._id) return [];
     return teamMembers.filter((member) => {
-      const managerId = member.reportingManager?._id || member.user?.reportingManager;
+      const managerId = getReportingManagerId(member);
       return managerId === user._id;
     });
   }, [teamMembers, user]);
 
-  const isManagerRole = teamMembership?.role === 'Manager';
+  const isManagerRole = normalizeRole(teamMembership?.role) === 'manager';
 
   const canView = useMemo(() => {
     if (isTeamAdmin) return true;
@@ -65,15 +96,25 @@ const TeamActivity = () => {
 
   const allowedUserIds = useMemo(() => {
     if (isTeamAdmin) {
-      return new Set(teamMembers.map((member) => member.user?._id || member.user));
+      return new Set(teamMembers.map(getMemberUserId).filter(Boolean));
     }
-    return new Set(directReportMembers.map((member) => member.user?._id || member.user));
+    return new Set(directReportMembers.map(getMemberUserId).filter(Boolean));
   }, [isTeamAdmin, teamMembers, directReportMembers]);
 
   const filteredMembers = useMemo(() => {
     if (isTeamAdmin) return teamMembers;
     return directReportMembers;
   }, [isTeamAdmin, teamMembers, directReportMembers]);
+
+  useEffect(() => {
+    if (selectedMember === 'all') return;
+    const isValidSelection = filteredMembers.some(
+      (member) => getMemberUserId(member) === selectedMember
+    );
+    if (!isValidSelection) {
+      setSelectedMember('all');
+    }
+  }, [filteredMembers, selectedMember]);
 
   const fetchActivities = async () => {
     if (!currentTeam) return;
@@ -124,7 +165,7 @@ const TeamActivity = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-6">
           <button
             onClick={() => navigate(`/teams/${teamId}`)}
@@ -171,8 +212,8 @@ const TeamActivity = () => {
                 >
                   <option value="all">All Members</option>
                   {filteredMembers.map((member) => (
-                    <option key={member.user?._id || member.user} value={member.user?._id || member.user}>
-                      {member.user?.name || 'Member'}
+                    <option key={getMemberUserId(member)} value={getMemberUserId(member)}>
+                      {getMemberName(member)}
                     </option>
                   ))}
                 </select>

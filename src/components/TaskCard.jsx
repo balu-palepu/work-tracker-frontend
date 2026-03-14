@@ -1,6 +1,6 @@
 import React from 'react';
 import { Calendar, Edit2, Trash2, AlertCircle, GitBranch } from 'lucide-react';
-import WorkItemIcon, { getWorkItemConfig } from './shared/WorkItemIcon';
+import { getWorkItemConfig } from './shared/WorkItemIcon';
 
 const PRIORITY_CONFIG = {
   low: {
@@ -29,7 +29,7 @@ const PRIORITY_CONFIG = {
   }
 };
 
-const TaskCard = ({ task, isDragging, onEdit, onDelete, onOpen, subtaskCount = 0, completedSubtasks = 0, parentTaskTitle }) => {
+const TaskCard = ({ task, isDragging, onEdit, onDelete, onOpen, parentTaskTitle }) => {
   const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
   const workItemConfig = getWorkItemConfig(task.workItemType);
 
@@ -42,15 +42,13 @@ const TaskCard = ({ task, isDragging, onEdit, onDelete, onOpen, subtaskCount = 0
   };
 
   const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
-  const subtaskPercent = subtaskCount > 0 ? Math.round((completedSubtasks / subtaskCount) * 100) : 0;
 
   return (
     <div
       onClick={() => onOpen && onOpen()}
       className={`
-        bg-white rounded-xl p-3 shadow-sm border-2 border-gray-200
+        bg-white rounded-xl p-3 shadow-sm border border-gray-200
         hover:shadow-md transition-all cursor-move group
-        border-l-4 ${workItemConfig.border}
         ${isDragging ? 'shadow-2xl rotate-3 scale-105' : ''}
       `}
     >
@@ -62,7 +60,9 @@ const TaskCard = ({ task, isDragging, onEdit, onDelete, onOpen, subtaskCount = 0
               {task.displayId}
             </span>
           )}
-          <WorkItemIcon type={task.workItemType} size="sm" />
+          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${workItemConfig.bg} ${workItemConfig.color}`}>
+            {workItemConfig.label}
+          </span>
           <span className={`
             inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold
             ${priority.bg} ${priority.color} ${priority.border} border
@@ -72,13 +72,13 @@ const TaskCard = ({ task, isDragging, onEdit, onDelete, onOpen, subtaskCount = 0
         </div>
 
         {/* Action Buttons */}
-        <div className="flex space-x-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex space-x-1">
           <button
             onClick={(e) => {
               e.stopPropagation();
               onEdit();
             }}
-            className="p-1 hover:bg-blue-50 rounded-lg text-gray-600 hover:text-blue-600 transition-colors"
+            className="p-1 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
             title="Edit task"
           >
             <Edit2 className="w-3.5 h-3.5" />
@@ -90,7 +90,7 @@ const TaskCard = ({ task, isDragging, onEdit, onDelete, onOpen, subtaskCount = 0
                 onDelete();
               }
             }}
-            className="p-1 hover:bg-red-50 rounded-lg text-gray-600 hover:text-red-600 transition-colors"
+            className="p-1 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
             title="Delete task"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -116,21 +116,6 @@ const TaskCard = ({ task, isDragging, onEdit, onDelete, onOpen, subtaskCount = 0
         <p className="text-xs text-gray-500 mb-2 line-clamp-1">
           {task.description}
         </p>
-      )}
-
-      {/* Subtask progress */}
-      {subtaskCount > 0 && (
-        <div className="flex items-center gap-2 mb-2">
-          <div className="flex-1 bg-gray-200 rounded-full h-1.5">
-            <div
-              className="bg-green-500 h-1.5 rounded-full transition-all"
-              style={{ width: `${subtaskPercent}%` }}
-            />
-          </div>
-          <span className="text-[10px] text-gray-500 font-medium whitespace-nowrap">
-            {completedSubtasks}/{subtaskCount}
-          </span>
-        </div>
       )}
 
       {/* Footer */}

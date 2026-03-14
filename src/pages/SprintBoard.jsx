@@ -30,27 +30,6 @@ const STATUS_STYLES = {
   done: { bg: 'bg-green-100', color: 'text-green-700' },
 };
 
-const ProgressRing = ({ progress, size = 80, strokeWidth = 6 }) => {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (Math.min(progress, 100) / 100) * circumference;
-  return (
-    <div className="relative" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="transform -rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={radius} stroke="#e5e7eb" strokeWidth={strokeWidth} fill="none" />
-        <circle
-          cx={size / 2} cy={size / 2} r={radius}
-          stroke="#3B82F6" strokeWidth={strokeWidth} fill="none"
-          strokeDasharray={circumference} strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round" className="transition-all duration-700"
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-lg font-bold text-gray-900">{Math.round(progress)}%</span>
-      </div>
-    </div>
-  );
-};
 
 const SprintBoard = () => {
   const { projectId, sprintId } = useParams();
@@ -226,9 +205,9 @@ const SprintBoard = () => {
   const completedTaskCount = tasks.filter((t) => ['resolved', 'completed', 'closed', 'done'].includes(String(t?.status || '').toLowerCase())).length;
   const totalTaskCount = tasks.length;
   const remainingTaskCount = Math.max(totalTaskCount - completedTaskCount, 0);
-  const progressValue = Number.isFinite(currentSprint?.progress) ? currentSprint.progress : 0;
-  const spCompleted = currentSprint?.metrics?.completedStoryPoints || 0;
-  const spTotal = currentSprint?.metrics?.totalStoryPoints || 0;
+const DONE_STATUSES = ['resolved', 'completed', 'closed', 'done'];
+  const spTotal = tasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
+  const spCompleted = tasks.filter(t => DONE_STATUSES.includes(String(t?.status || '').toLowerCase())).reduce((sum, t) => sum + (t.storyPoints || 0), 0);
 
   if (loading) {
     return (
@@ -391,11 +370,6 @@ const SprintBoard = () => {
           </button>
 
           <div className="flex items-start gap-5">
-            {/* Progress Ring */}
-            <div className="hidden sm:block flex-shrink-0">
-              <ProgressRing progress={progressValue} size={76} strokeWidth={5} />
-            </div>
-
             {/* Sprint Info */}
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
@@ -536,7 +510,7 @@ const SprintBoard = () => {
 
       {/* Retrospective for completed sprints */}
       {currentSprint.status === 'completed' && (
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <SprintRetrospective sprint={currentSprint} onSubmit={handleRetroSubmit} />
         </div>
       )}

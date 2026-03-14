@@ -105,16 +105,21 @@ const BandwidthReports = () => {
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
 
+  const getTotalAllocatedDays = (report) =>
+    (report?.allocations || []).reduce((s, a) => s + (a.allocatedDays || 0), 0);
+
+  const getFreeDays = (report) =>
+    Math.max(0, (report?.availableDays || 0) - getTotalAllocatedDays(report));
+
   const getAvailableBandwidth = (report) => {
-    if (typeof report?.availableBandwidth === 'number') return report.availableBandwidth;
-    if (report?.totalWorkingDays && report?.availableDays != null) {
-      return Math.round((report.availableDays / report.totalWorkingDays) * 100);
-    }
-    if (report?.availableDays != null) return Math.round(report.availableDays);
-    return 0;
+    if (!report || !report.totalWorkingDays) return 0;
+    return Math.round((getFreeDays(report) / report.totalWorkingDays) * 100);
   };
 
-  const hasBandwidth = (report) => getAvailableBandwidth(report) > 0;
+  const getAllocatedBandwidth = (report) => {
+    if (!report || !report.totalWorkingDays) return 0;
+    return Math.round((getTotalAllocatedDays(report) / report.totalWorkingDays) * 100);
+  };
 
   const sortedReports = useMemo(() => {
     return [...reports].sort((a, b) => {
@@ -128,38 +133,23 @@ const BandwidthReports = () => {
     return sortedReports.filter((report) => report.month === Number(selectedMonth));
   }, [selectedMonth, sortedReports]);
 
-  const adminRows = useMemo(() => {
-    if (!isTeamAdmin) return [];
-    return monthFilteredReports.flatMap((report) => {
-      const allocations = report.allocations && report.allocations.length > 0
-        ? report.allocations
-        : [null];
-      return allocations.map((allocation) => ({ report, allocation }));
-    });
-  }, [isTeamAdmin, monthFilteredReports]);
-
-  const filteredAdminRows = useMemo(() => {
+  const filteredAdminReports = useMemo(() => {
     if (!isTeamAdmin) return [];
     const term = searchTerm.trim().toLowerCase();
-    if (!term) return adminRows;
-    return adminRows.filter(({ report, allocation }) => {
+    if (!term) return monthFilteredReports;
+    return monthFilteredReports.filter((report) => {
       const userName = report.user?.name || '';
       const userEmail = report.user?.email || '';
-      const projectName = allocation?.project?.name || '';
+      const projects = (report.allocations || []).map((a) => a.project?.name || '').join(' ');
       const period = formatPeriod(report.month, report.year);
-      const bandwidthLabel = hasBandwidth(report) ? 'yes' : 'no';
-      const haystack = `${userName} ${userEmail} ${projectName} ${period} ${report.month}/${report.year} ${bandwidthLabel}`;
-      return haystack.toLowerCase().includes(term);
+      return `${userName} ${userEmail} ${projects} ${period}`.toLowerCase().includes(term);
     });
-  }, [adminRows, isTeamAdmin, searchTerm]);
+  }, [isTeamAdmin, monthFilteredReports, searchTerm]);
 
   const adminSummary = useMemo(() => {
     if (!isTeamAdmin) return null;
     const uniqueUsers = new Set(monthFilteredReports.map((report) => report.user?._id || report.user));
-    return {
-      totalReports: monthFilteredReports.length,
-      totalMembers: uniqueUsers.size
-    };
+    return { totalMembers: uniqueUsers.size };
   }, [isTeamAdmin, monthFilteredReports]);
 
   if (loading) {
@@ -172,7 +162,7 @@ const BandwidthReports = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -255,62 +245,66 @@ const BandwidthReports = () => {
         {isTeamAdmin ? (
           <div className="bg-white rounded-lg shadow border border-gray-200">
             <div className="px-6 py-4 border-b border-gray-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">All Submissions</h2>
-              {adminSummary && (
-                <div className="text-sm text-gray-600">
-                  Members with bandwidth: <span className="font-semibold text-gray-900">{adminSummary.totalMembers}</span>
-                </div>
-              )}
+              <div className="flex items-center gap-4">
+                <h2 className="text-lg font-semibold text-gray-900">All Submissions</h2>
+                {adminSummary && (
+                  <span className="text-sm text-gray-500">{adminSummary.totalMembers} members</span>
+                )}
+              </div>
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by user, project, month, or bandwidth"
+                placeholder="Search by user, project or month…"
                 className="w-full sm:w-80 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
 
-            {filteredAdminRows.length > 0 ? (
+            {filteredAdminReports.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        User
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Month
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Project
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Available Bandwidth
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Submitted
-                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Projects & Allocation</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Allocated</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Available</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredAdminRows.map(({ report, allocation }, index) => (
-                      <tr key={`${report._id}-${allocation?._id || index}`} className="hover:bg-gray-50">
+                    {filteredAdminReports.map((report) => (
+                      <tr key={report._id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 text-sm text-gray-900">
                           <div className="font-medium">{report.user?.name || 'Unknown User'}</div>
                           <div className="text-xs text-gray-500">{report.user?.email || ''}</div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-700">
+                        <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">
                           {formatPeriod(report.month, report.year)}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-700">
-                          {allocation?.project?.name || 'Unassigned'}
+                          {report.allocations?.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {report.allocations.map((a, i) => (
+                                <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
+                                  {a.project?.name || 'Unknown'}
+                                  <span className="text-blue-500">·</span>
+                                  {a.allocatedPercentage ?? Math.round((a.allocatedDays / (report.availableDays || 1)) * 100)}%
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 italic text-xs">No projects assigned</span>
+                          )}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-700">
-                          {hasBandwidth(report)
-                            ? `${getAvailableBandwidth(report)}%`
-                            : 'No (0%)'}
+                        <td className="px-6 py-4 text-sm font-medium text-amber-700 whitespace-nowrap">
+                          {getAllocatedBandwidth(report)}%
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-700">
+                        <td className="px-6 py-4 text-sm font-medium text-emerald-700 whitespace-nowrap">
+                          {getAvailableBandwidth(report)}%
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">
                           {report.createdAt ? new Date(report.createdAt).toLocaleDateString() : '-'}
                         </td>
                       </tr>
@@ -343,14 +337,14 @@ const BandwidthReports = () => {
                   </div>
 
                   {/* Metrics */}
-                  <div className="space-y-3 mb-4">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Available Bandwidth:</span>
-                      <span className="font-medium text-gray-900">
-                        {hasBandwidth(report)
-                          ? `${getAvailableBandwidth(report)}%`
-                          : 'No (0%)'}
-                      </span>
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    <div className="bg-emerald-50 rounded-lg px-3 py-2 text-center">
+                      <p className="text-base font-bold text-emerald-700">{getAvailableBandwidth(report)}%</p>
+                      <p className="text-xs text-emerald-600">Available</p>
+                    </div>
+                    <div className="bg-amber-50 rounded-lg px-3 py-2 text-center">
+                      <p className="text-base font-bold text-amber-700">{getAllocatedBandwidth(report)}%</p>
+                      <p className="text-xs text-amber-600">Allocated</p>
                     </div>
                   </div>
 

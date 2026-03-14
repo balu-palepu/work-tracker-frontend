@@ -270,7 +270,7 @@ const Backlog = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -508,7 +508,7 @@ const Backlog = () => {
       {/* Sticky Sprint Assignment Toolbar */}
       {selectedTasks.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 px-6 py-3 z-50">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="max-w-[1400px] mx-auto flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-white text-sm font-medium">
                 {selectedInfo.count} items selected

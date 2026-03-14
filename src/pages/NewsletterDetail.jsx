@@ -58,7 +58,7 @@ const NewsletterDetail = () => {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto py-20 flex justify-center">
+      <div className="max-w-8xl mx-auto py-20 flex justify-center">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900" />
       </div>
     );
@@ -66,7 +66,7 @@ const NewsletterDetail = () => {
 
   if (!item) {
     return (
-      <div className="max-w-4xl mx-auto py-20 text-center">
+      <div className="max-w-8xl mx-auto py-20 text-center">
         <p className="text-gray-500 font-medium">Newsletter not found</p>
         <Link to={`/teams/${teamId}/newsletters`} className="text-blue-600 hover:text-blue-800 text-sm mt-2 inline-block">
           Back to Newsletters
@@ -76,7 +76,7 @@ const NewsletterDetail = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Back + Actions */}
       <div className="flex items-center justify-between mb-6">
         <Link

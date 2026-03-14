@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { format, subDays } from 'date-fns';
+import { format, subDays, startOfMonth, startOfYear } from 'date-fns';
 import { toast } from 'react-toastify';
 import activityService from '../services/activityService';
 import { useTeam } from '../context/TeamContext';
@@ -7,8 +7,8 @@ import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Cart
 import { TrendingUp, Clock, CheckCircle, BarChart3, User, UsersRound, GitCompare } from 'lucide-react';
 
 const Statistics = () => {
-  const { isAdmin, isProjectManager, currentTeam } = useTeam();
-  const canViewTeam = isAdmin() || isProjectManager();
+  const { isAdmin, isProjectManager, currentTeam, teamMembership } = useTeam();
+  const canViewTeam = isAdmin() || isProjectManager() || teamMembership?.role === 'Manager';
 
   const [activeTab, setActiveTab] = useState('self');
   const [stats, setStats] = useState(null);
@@ -18,6 +18,15 @@ const Statistics = () => {
   const [teamActivities, setTeamActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState('30');
+
+  const getDateRange = () => {
+    const endDate = new Date();
+    let startDate;
+    if (dateRange === 'month') startDate = startOfMonth(endDate);
+    else if (dateRange === 'year') startDate = startOfYear(endDate);
+    else startDate = subDays(endDate, parseInt(dateRange));
+    return { startDate, endDate };
+  };
 
   const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
@@ -34,8 +43,7 @@ const Statistics = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const endDate = new Date();
-      const startDate = subDays(endDate, parseInt(dateRange));
+      const { startDate, endDate } = getDateRange();
 
       const [statsResponse, activitiesResponse] = await Promise.all([
         activityService.getStats({
@@ -63,8 +71,7 @@ const Statistics = () => {
     if (!currentTeam?._id) return;
     setLoading(true);
     try {
-      const endDate = new Date();
-      const startDate = subDays(endDate, parseInt(dateRange));
+      const { startDate, endDate } = getDateRange();
 
       const [statsResponse, activitiesResponse] = await Promise.all([
         activityService.getTeamStats(currentTeam._id, {
@@ -92,8 +99,7 @@ const Statistics = () => {
     if (!currentTeam?._id) return;
     setLoading(true);
     try {
-      const endDate = new Date();
-      const startDate = subDays(endDate, parseInt(dateRange));
+      const { startDate, endDate } = getDateRange();
 
       const response = await activityService.getMemberComparison(currentTeam._id, {
         startDate: format(startDate, 'yyyy-MM-dd'),
@@ -506,7 +512,7 @@ const Statistics = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Statistics</h1>
@@ -522,6 +528,8 @@ const Statistics = () => {
           <option value="7">Last 7 days</option>
           <option value="30">Last 30 days</option>
           <option value="90">Last 90 days</option>
+          <option value="month">This Month</option>
+          <option value="year">This Year</option>
         </select>
       </div>
 

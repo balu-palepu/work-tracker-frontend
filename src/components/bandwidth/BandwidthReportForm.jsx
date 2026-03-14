@@ -14,24 +14,57 @@ const BandwidthReportForm = ({
   const { currentTeam } = useTeam();
   const [projects, setProjects] = useState([]);
   const now = new Date();
+  const getTotalAllocatedBandwidth = (sourceReport) => {
+    if (!sourceReport?.allocations?.length) return 0;
+
+    const percentageTotal = sourceReport.allocations.reduce(
+      (sum, allocation) => sum + (Number(allocation.allocatedPercentage) || 0),
+      0
+    );
+    if (percentageTotal > 0) {
+      return Math.min(100, Math.max(0, Math.round(percentageTotal)));
+    }
+
+    const allocatedDays = sourceReport.allocations.reduce(
+      (sum, allocation) => sum + (Number(allocation.allocatedDays) || 0),
+      0
+    );
+    if (sourceReport.totalWorkingDays && allocatedDays > 0) {
+      return Math.min(
+        100,
+        Math.max(0, Math.round((allocatedDays / sourceReport.totalWorkingDays) * 100))
+      );
+    }
+
+    return 0;
+  };
+
   const getAvailableBandwidth = (sourceReport) => {
     if (!sourceReport) return 100;
     if (typeof sourceReport.availableBandwidth === 'number') {
       return Math.min(100, Math.max(0, Math.round(sourceReport.availableBandwidth)));
     }
+
+    const totalAllocatedBandwidth = getTotalAllocatedBandwidth(sourceReport);
+
     if (sourceReport.totalWorkingDays && sourceReport.availableDays != null) {
+      const availablePercentage = Math.round(
+        (Number(sourceReport.availableDays) / sourceReport.totalWorkingDays) * 100
+      );
+      return Math.min(100, Math.max(0, availablePercentage - totalAllocatedBandwidth));
+    }
+
+    if (sourceReport.availableDays != null) {
       return Math.min(
         100,
-        Math.max(0, Math.round((sourceReport.availableDays / sourceReport.totalWorkingDays) * 100))
+        Math.max(0, Math.round(Number(sourceReport.availableDays) - totalAllocatedBandwidth))
       );
     }
-    if (sourceReport.availableDays != null) {
-      return Math.min(100, Math.max(0, Math.round(sourceReport.availableDays)));
-    }
-    return 100;
+
+    return Math.max(0, 100 - totalAllocatedBandwidth);
   };
 
-  const normalizeAllocations = (sourceReport, availableBandwidth) => {
+  const normalizeAllocations = (sourceReport) => {
     if (!sourceReport?.allocations) return [];
     return sourceReport.allocations.map((allocation) => {
       return {
@@ -40,15 +73,20 @@ const BandwidthReportForm = ({
     });
   };
 
-  const initialAvailableBandwidth = getAvailableBandwidth(report);
-  const initialHasBandwidth = initialAvailableBandwidth > 0;
-  const [formData, setFormData] = useState({
-    month: report?.month || now.getMonth() + 1,
-    year: report?.year || now.getFullYear(),
-    hasBandwidth: initialHasBandwidth,
-    availablePercentage: initialHasBandwidth ? initialAvailableBandwidth : 0,
-    allocations: normalizeAllocations(report, initialAvailableBandwidth)
-  });
+  const buildFormData = (sourceReport) => {
+    const initialAvailableBandwidth = getAvailableBandwidth(sourceReport);
+    const initialHasBandwidth = initialAvailableBandwidth > 0;
+
+    return {
+      month: sourceReport?.month || now.getMonth() + 1,
+      year: sourceReport?.year || now.getFullYear(),
+      hasBandwidth: initialHasBandwidth,
+      availablePercentage: initialHasBandwidth ? initialAvailableBandwidth : 0,
+      allocations: normalizeAllocations(sourceReport)
+    };
+  };
+
+  const [formData, setFormData] = useState(() => buildFormData(report));
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
@@ -56,6 +94,11 @@ const BandwidthReportForm = ({
       fetchProjects();
     }
   }, [currentTeam]);
+
+  useEffect(() => {
+    setFormData(buildFormData(report));
+    setErrors({});
+  }, [report]);
 
   const fetchProjects = async () => {
     try {

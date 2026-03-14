@@ -75,7 +75,7 @@ const TeamSwitcher = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+        <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 py-2 z-[200]">
           <div className="px-3 py-2 border-b border-gray-200">
             <p className="text-xs font-medium text-gray-500 uppercase">Your Teams</p>
           </div>

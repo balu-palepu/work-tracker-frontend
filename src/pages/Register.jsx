@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { Calendar, Lock, Mail, User } from 'lucide-react';
+import { SPECIALTY_OPTIONS, normalizeSpecialtySelection } from '../utils/memberSpecialties';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -10,6 +11,8 @@ const Register = () => {
     email: '',
     password: '',
     confirmPassword: '',
+    speciality: '',
+    otherSpeciality: '',
   });
   const [loading, setLoading] = useState(false);
   const [emailError, setEmailError] = useState('');
@@ -58,7 +61,16 @@ const Register = () => {
     setLoading(true);
 
     try {
-      const { confirmPassword, ...registerData } = formData;
+      const speciality = normalizeSpecialtySelection(formData.speciality, formData.otherSpeciality);
+      if (!speciality) {
+        toast.error('Please select your designation');
+        setLoading(false);
+        return;
+      }
+
+      const { confirmPassword, otherSpeciality, ...registerData } = formData;
+      registerData.speciality = speciality;
+      registerData.customTitle = speciality;
       await register(registerData);
       toast.success('Registration successful!');
       navigate('/teams');
@@ -132,6 +144,46 @@ const Register = () => {
                 </p>
               )}
             </div>
+
+            <div>
+              <label htmlFor="speciality" className="block text-sm font-medium text-gray-700 mb-1">
+                Designation
+              </label>
+              <select
+                id="speciality"
+                name="speciality"
+                required
+                value={formData.speciality}
+                onChange={handleChange}
+                className="input-field appearance-none bg-white"
+                style={{ height: '42px' }}
+              >
+                <option value="">Select designation</option>
+                {SPECIALTY_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {formData.speciality === 'Other' && (
+              <div>
+                <label htmlFor="otherSpeciality" className="block text-sm font-medium text-gray-700 mb-1">
+                  Enter Designation
+                </label>
+                <input
+                  id="otherSpeciality"
+                  name="otherSpeciality"
+                  type="text"
+                  required
+                  value={formData.otherSpeciality}
+                  onChange={handleChange}
+                  className="input-field"
+                  placeholder="Enter your designation"
+                />
+              </div>
+            )}
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">

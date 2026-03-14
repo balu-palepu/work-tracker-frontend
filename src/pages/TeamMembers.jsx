@@ -9,6 +9,7 @@ import TableHeader from '../components/shared/TableHeader';
 import { Users, Plus, Mail, MoreVertical, Trash2, Edit2, ChevronsLeft, AlertTriangle, Unlock, Clock } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { format } from 'date-fns';
+import { SPECIALTY_OPTIONS, getMemberDesignation, normalizeSpecialtySelection } from '../utils/memberSpecialties';
 
 const TeamMembers = () => {
   const { teamId } = useParams();
@@ -37,12 +38,16 @@ const TeamMembers = () => {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [newMemberRole, setNewMemberRole] = useState('member');
   const [newMemberManager, setNewMemberManager] = useState('');
+  const [newMemberSpeciality, setNewMemberSpeciality] = useState('');
+  const [newMemberOtherSpeciality, setNewMemberOtherSpeciality] = useState('');
   const [adding, setAdding] = useState(false);
   const [addErrors, setAddErrors] = useState('');
 
   // Edit member form
   const [editRole, setEditRole] = useState('');
   const [editManager, setEditManager] = useState('');
+  const [editSpeciality, setEditSpeciality] = useState('');
+  const [editOtherSpeciality, setEditOtherSpeciality] = useState('');
   const [updating, setUpdating] = useState(false);
 
   // Locked accounts
@@ -156,6 +161,7 @@ const TeamMembers = () => {
     try {
       setAdding(true);
       setAddErrors('');
+      const resolvedSpeciality = normalizeSpecialtySelection(newMemberSpeciality, newMemberOtherSpeciality);
       const reportingManagerId =
         newMemberRole === 'member' || newMemberRole === 'Manager'
           ? (newMemberManager || null)
@@ -172,7 +178,9 @@ const TeamMembers = () => {
           teamService.addTeamMember(teamId, {
             userId,
             role: newMemberRole,
-            reportingManagerId
+            reportingManagerId,
+            customTitle: resolvedSpeciality || undefined,
+            speciality: resolvedSpeciality || undefined
           })
         )
       );
@@ -202,6 +210,8 @@ const TeamMembers = () => {
       setSelectedUsers([]);
       setNewMemberRole('member');
       setNewMemberManager('');
+      setNewMemberSpeciality('');
+      setNewMemberOtherSpeciality('');
     } catch (error) {
       console.error('Error adding member:', error);
       const errorMsg = error.response?.data?.message || 'Failed to add member';
@@ -219,6 +229,7 @@ const TeamMembers = () => {
 
     try {
       setUpdating(true);
+      const resolvedSpeciality = normalizeSpecialtySelection(editSpeciality, editOtherSpeciality);
       const reportingManagerId =
         editRole === 'member' || editRole === 'Manager'
           ? (editManager || null)
@@ -232,7 +243,9 @@ const TeamMembers = () => {
 
       await teamService.updateTeamMember(teamId, selectedMember.user._id, {
         role: editRole,
-        reportingManagerId
+        reportingManagerId,
+        customTitle: resolvedSpeciality || undefined,
+        speciality: resolvedSpeciality || undefined
       });
 
       toast.success('Member updated successfully');
@@ -263,9 +276,13 @@ const TeamMembers = () => {
   };
 
   const openEditModal = (member) => {
+    const designation = getMemberDesignation(member);
+    const matchedSpeciality = SPECIALTY_OPTIONS.find((option) => option !== 'Other' && option === designation);
     setSelectedMember(member);
     setEditRole(member.role);
     setEditManager(member.reportingManager?._id || member.user?.reportingManager || '');
+    setEditSpeciality(matchedSpeciality || (designation ? 'Other' : ''));
+    setEditOtherSpeciality(matchedSpeciality ? '' : designation);
     setShowEditModal(true);
     setActionMenuOpen(null);
   };
@@ -443,6 +460,7 @@ const TeamMembers = () => {
                 columns={[
                   { field: 'user.name', label: 'Name', sortable: true },
                   { field: 'user.email', label: 'Email', sortable: true },
+                  { field: 'customTitle', label: 'Designation', sortable: false },
                   { field: 'role', label: 'Role', sortable: true },
                   { field: 'reportingManager.name', label: 'Manager', sortable: true },
                   { field: 'joinedAt', label: 'Joined', sortable: true },
@@ -455,7 +473,7 @@ const TeamMembers = () => {
               <tbody className="divide-y divide-gray-200">
                 {members.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
                       No team members found
                     </td>
                   </tr>
@@ -490,6 +508,11 @@ const TeamMembers = () => {
                           <Mail className="w-3 h-3 mr-1 flex-shrink-0" />
                           <span className="truncate">{member.user.email}</span>
                         </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-gray-900">
+                          {getMemberDesignation(member) || '-'}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(member.role)}`}>
@@ -610,6 +633,36 @@ const TeamMembers = () => {
               </div>
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Designation
+                </label>
+                <select
+                  value={newMemberSpeciality}
+                  onChange={(e) => setNewMemberSpeciality(e.target.value)}
+                  className="input-field appearance-none bg-white"
+                  style={{ height: '42px' }}
+                >
+                  <option value="">Select designation</option>
+                  {SPECIALTY_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+              {newMemberSpeciality === 'Other' && (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Enter Designation
+                  </label>
+                  <input
+                    type="text"
+                    value={newMemberOtherSpeciality}
+                    onChange={(e) => setNewMemberOtherSpeciality(e.target.value)}
+                    className="input-field"
+                    placeholder="Enter designation"
+                  />
+                </div>
+              )}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Manager
                 </label>
                 <select
@@ -639,6 +692,8 @@ const TeamMembers = () => {
                     setSelectedUsers([]);
                     setNewMemberRole('member');
                     setNewMemberManager('');
+                    setNewMemberSpeciality('');
+                    setNewMemberOtherSpeciality('');
                     setAddErrors('');
                   }}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
@@ -684,6 +739,36 @@ const TeamMembers = () => {
               </div>
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Designation
+                </label>
+                <select
+                  value={editSpeciality}
+                  onChange={(e) => setEditSpeciality(e.target.value)}
+                  className="input-field appearance-none bg-white"
+                  style={{ height: '42px' }}
+                >
+                  <option value="">Select designation</option>
+                  {SPECIALTY_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+              {editSpeciality === 'Other' && (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Enter Designation
+                  </label>
+                  <input
+                    type="text"
+                    value={editOtherSpeciality}
+                    onChange={(e) => setEditOtherSpeciality(e.target.value)}
+                    className="input-field"
+                    placeholder="Enter designation"
+                  />
+                </div>
+              )}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Manager
                 </label>
                 <select
@@ -708,6 +793,8 @@ const TeamMembers = () => {
                   onClick={() => {
                     setShowEditModal(false);
                     setSelectedMember(null);
+                    setEditSpeciality('');
+                    setEditOtherSpeciality('');
                   }}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                   disabled={updating}

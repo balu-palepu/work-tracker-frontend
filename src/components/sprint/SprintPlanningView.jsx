@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Play, Plus, Target, Users, AlertTriangle } from 'lucide-react';
-import WorkItemIcon from '../shared/WorkItemIcon';
+import { getWorkItemConfig } from '../shared/WorkItemIcon';
 
 const PRIORITY_COLORS = {
   urgent: 'bg-red-100 text-red-800',
@@ -28,7 +28,7 @@ const SprintPlanningView = ({ sprint, tasks, onStartSprint, onNavigateToTask, on
   }, [tasks]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Capacity Gauge */}
       {capacity > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -93,7 +93,7 @@ const SprintPlanningView = ({ sprint, tasks, onStartSprint, onNavigateToTask, on
                     onClick={() => onNavigateToTask(task._id)}
                     className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors text-left"
                   >
-                    <WorkItemIcon type={task.workItemType} size="sm" />
+                    {(() => { const cfg = getWorkItemConfig(task.workItemType); return <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${cfg.bg} ${cfg.color}`}>{cfg.label}</span>; })()}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{task.title}</p>
                       {task.description && (

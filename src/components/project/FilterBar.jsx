@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Filter, X, Save, ChevronDown } from 'lucide-react';
+import { X, Save, ChevronDown } from 'lucide-react';
 import useClickOutside from '../../hooks/useClickOutside';
 
 const FILTER_FIELDS = [
@@ -92,7 +92,6 @@ const FilterBar = ({ filters, onFiltersChange, assignees = [], workflowStatuses 
 
   return (
     <div className="flex flex-wrap items-center gap-2 py-1">
-      <Filter className="w-4 h-4 text-gray-400" />
 
       {activeFilters.map((filter, index) => {
         const fieldDef = FILTER_FIELDS.find((f) => f.id === filter.field);
@@ -134,7 +133,7 @@ const FilterBar = ({ filters, onFiltersChange, assignees = [], workflowStatuses 
         );
       })}
 
-      {availableFields.length > 0 && (
+      {/* {availableFields.length > 0 && (
         <div className="relative" ref={addFilterRef}>
           <button onClick={() => setShowAddFilter((v) => !v)} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">
             + Filter
@@ -149,7 +148,7 @@ const FilterBar = ({ filters, onFiltersChange, assignees = [], workflowStatuses 
             </div>
           )}
         </div>
-      )}
+      )} */}
 
       {activeFilters.length > 0 && (
         <button onClick={clearAll} className="text-xs text-gray-500 hover:text-gray-700 font-medium">Clear all</button>

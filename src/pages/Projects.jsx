@@ -16,12 +16,11 @@ import MultiSelectDropdown from '../components/shared/MultiSelectDropdown';
 import DownloadReportButton from '../components/shared/DownloadReportButton';
 import HierarchyView from '../components/project/HierarchyView';
 import ListView from '../components/project/ListView';
-import TimelineView from '../components/project/TimelineView';
 import FilterBar, { applyFilters } from '../components/project/FilterBar';
 import ProjectAnalytics from '../components/project/ProjectAnalytics';
 import SprintSelectorBar from '../components/project/SprintSelectorBar';
 import SprintCalendarView from '../components/project/SprintCalendarView';
-import { Folder, User, X, Users, Trash2, Plus, Calendar, CalendarDays, ClipboardList, LayoutGrid, List, GitBranch, Clock3, Sparkles } from 'lucide-react';
+import { Folder, User, X, Users, Trash2, Plus, Calendar, CalendarDays, ClipboardList, LayoutGrid, List, GitBranch } from 'lucide-react';
 
 const Projects = () => {
   const { currentTeam, isAdmin, selectTeam, loading: teamLoading } = useTeam();
@@ -47,7 +46,6 @@ const Projects = () => {
   const [membersToAdd, setMembersToAdd] = useState([]);
   const [taskFilter, setTaskFilter] = useState('all');
   const [workTypeFilter, setWorkTypeFilter] = useState('all');
-  const [metricsHighlight, setMetricsHighlight] = useState('total');
   const [sprintLoading, setSprintLoading] = useState(false);
   const [backlogLoading, setBacklogLoading] = useState(false);
   const [selectedSprintId, setSelectedSprintId] = useState('');
@@ -102,7 +100,6 @@ const Projects = () => {
     setWorkTypeFilter('all');
     setActiveFilters([]);
     setSelectedSprintId('');
-    setMetricsHighlight('total');
   }, [selectedProject?._id]);
 
   useEffect(() => {
@@ -675,7 +672,6 @@ const Projects = () => {
   const viewOptions = [
     { id: 'board', label: 'Board', icon: LayoutGrid },
     { id: 'hierarchy', label: 'Hierarchy', icon: GitBranch },
-    { id: 'timeline', label: 'Roadmap', icon: Clock3 },
     // { id: 'calendar', label: 'Calendar', icon: CalendarDays },
   ];
 
@@ -905,10 +901,6 @@ const Projects = () => {
                           Lead: {selectedProject.teamLead.name}
                         </span>
                       )}
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-blue-500/20 text-blue-700 border border-blue-300/20">
-                        <Sparkles className="h-3 w-3" />
-                        {String(selectedProject.userRole || currentTeamRole || 'member').toUpperCase()}
-                      </span>
                     </div>
                   </div>
                 </div>
@@ -992,54 +984,22 @@ const Projects = () => {
             <div className="bg-slate-50 border-b border-gray-200 px-4 sm:px-8 py-3">
               {/* Metrics row */}
               <div className="flex flex-wrap items-center gap-2 mb-3">
-                <button
-                  type="button"
-                  onClick={() => setMetricsHighlight('total')}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                    metricsHighlight === 'total'
-                      ? 'bg-white text-black border-2 border-black'
-                      : 'bg-white border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <span className={metricsHighlight === 'total' ? 'text-black' : 'text-gray-500'}>Total</span>
-                  <span className={`font-bold ${metricsHighlight === 'total' ? 'text-black' : 'text-gray-900'}`}>{projectMetrics.total}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMetricsHighlight('active')}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                    metricsHighlight === 'active'
-                      ? 'bg-white text-black border-2 border-black'
-                      : 'bg-white border-gray-200 hover:border-gray-400'
-                  }`}
-                >
-                  <span className={metricsHighlight === 'active' ? 'text-black' : 'text-gray-500'}>Active</span>
-                  <span className={`font-bold ${metricsHighlight === 'active' ? 'text-black' : 'text-gray-900'}`}>{projectMetrics.inProgress}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMetricsHighlight('done')}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                    metricsHighlight === 'done'
-                      ? 'bg-white text-black border-2 border-black'
-                      : 'bg-white border-gray-200 hover:border-green-300'
-                  }`}
-                >
-                  <span className={metricsHighlight === 'done' ? 'text-black' : 'text-gray-500'}>Done</span>
-                  <span className={`font-bold ${metricsHighlight === 'done' ? 'text-black' : 'text-green-700'}`}>{projectMetrics.completed}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMetricsHighlight('backlog')}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                    metricsHighlight === 'backlog'
-                      ? 'bg-white text-black border-2 border-black'
-                      : 'bg-white border-gray-200 hover:border-purple-300'
-                  }`}
-                >
-                  <span className={metricsHighlight === 'backlog' ? 'text-black' : 'text-gray-500'}>Backlog</span>
-                  <span className={`font-bold ${metricsHighlight === 'backlog' ? 'text-black' : 'text-purple-700'}`}>{projectMetrics.backlogCount}</span>
-                </button>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-white border border-gray-200">
+                  <span className="text-gray-500">Total</span>
+                  <span className="font-bold text-gray-900">{projectMetrics.total}</span>
+                </div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-white border border-gray-200">
+                  <span className="text-gray-500">Active</span>
+                  <span className="font-bold text-gray-900">{projectMetrics.inProgress}</span>
+                </div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-white border border-gray-200">
+                  <span className="text-gray-500">Done</span>
+                  <span className="font-bold text-green-700">{projectMetrics.completed}</span>
+                </div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-white border border-gray-200">
+                  <span className="text-gray-500">Backlog</span>
+                  <span className="font-bold text-purple-700">{projectMetrics.backlogCount}</span>
+                </div>
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-white border border-gray-200">
                   <span className="text-gray-500">Completion</span>
                   <span className="font-bold text-gray-900">{projectMetrics.completionRate}%</span>
@@ -1316,6 +1276,8 @@ const Projects = () => {
                         <div className="divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden">
                           {projectMembers.map((pm) => {
                             const isOwner = pm.role === 'owner';
+                            const isSelf = pm.user?._id === user?._id;
+                            const cannotRemove = isOwner || isSelf;
                             return (
                               <div key={pm._id} className="p-4 flex items-center justify-between">
                                 <div className="flex items-center gap-3">
@@ -1324,7 +1286,7 @@ const Projects = () => {
                                   </div>
                                   <div>
                                     <div className="font-medium text-gray-900">
-                                      {pm.user?.name || 'Unknown'}
+                                      {pm.user?.name || 'Unknown'}{isSelf ? ' (you)' : ''}
                                     </div>
                                     <div className="text-sm text-gray-600">
                                       {pm.user?.email || 'N/A'} • {pm.role}
@@ -1334,9 +1296,9 @@ const Projects = () => {
 
                                 <button
                                   onClick={() => handleRemoveProjectMember(pm.user?._id)}
-                                  disabled={memberActionLoading || isOwner}
+                                  disabled={memberActionLoading || cannotRemove}
                                   className="px-3 py-2 text-sm font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                                  title={isOwner ? 'Cannot remove project owner' : 'Remove member'}
+                                  title={isOwner ? 'Cannot remove project owner' : isSelf ? 'Cannot remove yourself' : 'Remove member'}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                   Remove
@@ -1393,6 +1355,7 @@ const Projects = () => {
                       tasks={filteredTasksWithCode}
                       onOpenTask={navigateToTask}
                       onEditTask={(task) => navigateToTask(task._id)}
+                      onDeleteTask={handleTaskDelete}
                       onCreateTask={navigateToCreateTask}
                       onStatusChange={handleInlineStatusChange}
                       workflowStatuses={workflowStatuses}
@@ -1411,17 +1374,7 @@ const Projects = () => {
                 />
               )}
 
-              {viewMode === 'timeline' && (
-                <TimelineView
-                  tasks={filteredTasksWithCode}
-                  onOpenTask={navigateToTask}
-                  workflowStatuses={workflowStatuses}
-                  sprints={sprints}
-                  onSprintClick={(sprintId) => navigate(`/teams/${currentTeam._id}/projects/${selectedProject._id}/sprints/${sprintId}`)}
-                />
-              )}
-
-              {viewMode === 'calendar' && (
+{viewMode === 'calendar' && (
                 <SprintCalendarView
                   tasks={filteredTasksWithCode}
                   sprintStartDate={

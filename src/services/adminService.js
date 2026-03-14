@@ -73,6 +73,12 @@ const adminService = {
     );
     return response.data;
   },
+
+  // Get member comparison stats (admin/manager)
+  getMemberComparison: async (teamId, params = {}) => {
+    const response = await api.get(`/teams/${teamId}/admin/comparison`, { params });
+    return response.data;
+  },
 };
 
 export default adminService;
